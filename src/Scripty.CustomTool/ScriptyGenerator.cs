@@ -52,6 +52,12 @@ namespace Scripty
                 string inputFilePath = projectItem.Properties.Item("FullPath").Value.ToString();
                 Project project = projectItem.ContainingProject;
                 Solution solution = projectItem.DTE.Solution;
+                
+                // TODO: add unit tests for changed parts in engine
+                // TODO: Make the options panel and save the result, get it here.
+                // TODO: add cmd line switch for console
+                // TODO: Add per-file override
+                // TODO: Add commmand and context menu
 
                 // Run the generator and get the results
                 ScriptSource source = new ScriptSource(inputFilePath, inputFileContent);

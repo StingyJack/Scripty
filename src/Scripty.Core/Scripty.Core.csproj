@@ -193,6 +193,7 @@
     <Compile Include="..\SolutionInfo.cs">
       <Link>Properties\SolutionInfo.cs</Link>
     </Compile>
+    <Compile Include="Enums.cs" />
     <Compile Include="Output\BuildAction.cs" />
     <Compile Include="Output\FormatterOptions.cs" />
     <Compile Include="Output\Indent.cs" />

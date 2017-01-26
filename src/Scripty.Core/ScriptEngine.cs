@@ -15,6 +15,8 @@ namespace Scripty.Core
     {
         private readonly string _projectFilePath;
 
+        public OnScriptGenerateOutputBehavior OutputBehavior { get; set; }
+
         public ScriptEngine(string projectFilePath)
         {
             if (string.IsNullOrEmpty(projectFilePath))
@@ -47,33 +49,24 @@ namespace Scripty.Core
                     "Scripty.Core.Output",
                     "Scripty.Core.ProjectTree");
 
+            ScriptResult scriptResult = null;
+            bool exHappened = false;
+
             using (ScriptContext context = GetContext(source.FilePath))
             {
+                bool writeAllOutputFiles = true;
+
                 try
                 {
                     await CSharpScript.EvaluateAsync(source.Code, options, context);
 
-                    foreach (var outputFile in context.Output.OutputFiles)
-                    {
-                        (outputFile as OutputFile).Close();
-
-                        if (outputFile.FormatterEnabled)
-                        {
-                            var document = ProjectRoot.Analysis.AddDocument(outputFile.FilePath, File.ReadAllText(outputFile.FilePath));
-                            
-                            var resultDocument = await Formatter.FormatAsync(
-                                document,
-                                outputFile.FormatterOptions.Apply(ProjectRoot.Workspace.Options)
-                            );
-                            var resultContent = await resultDocument.GetTextAsync();
-
-                            File.WriteAllText(outputFile.FilePath, resultContent.ToString());
-                        }
-                    }
+                    scriptResult = new ScriptResult(context.Output.OutputFiles);
                 }
                 catch (CompilationErrorException compilationError)
                 {
-                    return new ScriptResult(context.Output.OutputFiles,
+                    exHappened = true;
+
+                    scriptResult = new ScriptResult(context.Output.OutputFiles,
                         compilationError.Diagnostics
                             .Select(x => new ScriptError
                             {
@@ -85,7 +78,9 @@ namespace Scripty.Core
                 }
                 catch (AggregateException aggregateException)
                 {
-                    return new ScriptResult(context.Output.OutputFiles,
+                    exHappened = true;
+
+                    scriptResult = new ScriptResult(context.Output.OutputFiles,
                         aggregateException.InnerExceptions
                             .Select(x => new ScriptError
                             {
@@ -94,7 +89,9 @@ namespace Scripty.Core
                 }
                 catch (Exception ex)
                 {
-                    return new ScriptResult(context.Output.OutputFiles,
+                    exHappened = true;
+
+                    scriptResult = new ScriptResult(context.Output.OutputFiles,
                         new[]
                         {
                             new ScriptError
@@ -103,7 +100,52 @@ namespace Scripty.Core
                             }
                         });
                 }
-                return new ScriptResult(context.Output.OutputFiles);
+
+                switch (OutputBehavior) {
+
+                    case OnScriptGenerateOutputBehavior.DontOverwriteIfExecutionFails:
+                        if (exHappened)
+                        {
+                            writeAllOutputFiles = false;
+                        }
+                        break;
+
+                    case OnScriptGenerateOutputBehavior.ScriptControlsOutput:
+                        writeAllOutputFiles = context.Output.ScriptOutput == ScriptOutput.Keep;
+                        break;
+
+                    case OnScriptGenerateOutputBehavior.NeverGenerateOutput:
+                        writeAllOutputFiles = false;
+                        break;
+                }
+
+                if (writeAllOutputFiles)
+                {
+                    await WriteAllOutputFiles(context);
+                }
+
+            }
+            return scriptResult;
+        }
+
+        protected async Task WriteAllOutputFiles(ScriptContext context)
+        {
+            foreach (var outputFile in context.Output.OutputFiles)
+            {
+                (outputFile as OutputFile)?.Close();
+
+                if (outputFile.FormatterEnabled)
+                {
+                    var document = ProjectRoot.Analysis.AddDocument(outputFile.FilePath, File.ReadAllText(outputFile.FilePath));
+
+                    var resultDocument = await Formatter.FormatAsync(
+                        document,
+                        outputFile.FormatterOptions.Apply(ProjectRoot.Workspace.Options)
+                    );
+                    var resultContent = await resultDocument.GetTextAsync();
+
+                    File.WriteAllText(outputFile.FilePath, resultContent.ToString());
+                }
             }
         }
 

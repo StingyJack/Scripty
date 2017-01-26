@@ -35,6 +35,12 @@ namespace Scripty.Core.Output
             _filePath = Path.ChangeExtension(scriptFilePath, ".cs");
         }
 
+        /// <summary>
+        ///     When <see cref="ScriptEngine.OutputBehavior"/> is set to  <see cref="OnScriptGenerateOutputBehavior.ScriptControlsOutput"/>
+        /// this is how the script determines if the output is retained or discarded.
+        /// </summary>
+        public ScriptOutput ScriptOutput { get; set; } = ScriptOutput.Keep;
+
         protected override void Dispose(bool disposing)
         {
             if (_disposed)
