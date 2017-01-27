@@ -12,6 +12,7 @@ using Scripty.Core.Output;
 
 namespace Scripty
 {
+    
     /// <summary>
     /// This is the generator class. 
     /// When setting the 'Custom Tool' property of a C# or VB project item to "Scripty", 
@@ -52,9 +53,10 @@ namespace Scripty
                 string inputFilePath = projectItem.Properties.Item("FullPath").Value.ToString();
                 Project project = projectItem.ContainingProject;
                 Solution solution = projectItem.DTE.Solution;
+                var options = projectItem.DTE.Properties["Scripty Options", "General"];
+                var onSaveBehave = (OnScriptGenerateOutputBehavior)options.Item("OnScriptGenerateOutputBehavior").Value;
                 
                 // TODO: add unit tests for changed parts in engine
-                // TODO: Make the options panel and save the result, get it here.
                 // TODO: add cmd line switch for console
                 // TODO: Add per-file override
                 // TODO: Add commmand and context menu
@@ -62,6 +64,7 @@ namespace Scripty
                 // Run the generator and get the results
                 ScriptSource source = new ScriptSource(inputFilePath, inputFileContent);
                 ScriptEngine engine = new ScriptEngine(project.FullName);
+                engine.OutputBehavior = onSaveBehave;
                 ScriptResult result = engine.Evaluate(source).Result;
 
                 // Report errors

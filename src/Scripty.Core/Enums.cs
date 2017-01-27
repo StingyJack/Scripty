@@ -1,13 +1,12 @@
 ﻿namespace Scripty.Core
 {
-
     /// <summary>
     ///      How to handle output attached to the executing script
     /// </summary>
     public enum OnScriptGenerateOutputBehavior
     {
         /// <summary>
-        ///     is always discarded and/or overwritten
+        ///     Existing output is always discarded and/or overwritten
         /// </summary>
         AlwaysOverwriteOutput,
 
