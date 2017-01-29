@@ -2,21 +2,21 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Options;
 
 namespace Scripty.Core.Output
 {
-    internal class OutputFileWriter : OutputFile
+    internal class OutputFileWriter : OutputFile, IOutputFileWriter
     {
         private readonly TextWriter _textWriter;
         private int _indentLevel = 0;
         private bool _indentNextWrite = false;  // Only indent the first write after a WriteLine() call
         private BuildAction _buildAction;
 
-        internal OutputFileWriter(string filePath)
+        internal OutputFileWriter(string filePath, string tmpFilePath)
         {
-            _textWriter = new StreamWriter(filePath);
-            FilePath = filePath;
+            _textWriter = new StreamWriter(tmpFilePath);
+            TargetFilePath = filePath;
+            TempFilePath = tmpFilePath;
             _buildAction = Path.GetExtension(filePath) == ".cs" ? BuildAction.Compile : BuildAction.None;
         }
 
@@ -24,7 +24,8 @@ namespace Scripty.Core.Output
         internal OutputFileWriter(TextWriter textWriter)
         {
             _textWriter = textWriter;
-            FilePath = null;
+            TargetFilePath = null;
+            TempFilePath = null;
             _buildAction = BuildAction.None;
         }
 
@@ -33,7 +34,9 @@ namespace Scripty.Core.Output
             _textWriter.Dispose();
         }
 
-        public override string FilePath { get; }
+        public override string TargetFilePath { get; }
+
+        public override string TempFilePath { get; }
 
         public override BuildAction BuildAction
         {

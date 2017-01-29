@@ -27,7 +27,7 @@ namespace Scripty.Core.Tests.Output
                 output.SetExtension(extension);
 
                 // Then
-                Assert.AreEqual(expected, output.FilePath);
+                Assert.AreEqual(expected, output.TargetFilePath);
             }
 
             [Test]
@@ -41,7 +41,7 @@ namespace Scripty.Core.Tests.Output
                 output.SetExtension(".json");
 
                 // Then
-                Assert.AreEqual(@"C:\Test\script.json", output.FilePath);
+                Assert.AreEqual(@"C:\Test\script.json", output.TargetFilePath);
             }
         }
     }

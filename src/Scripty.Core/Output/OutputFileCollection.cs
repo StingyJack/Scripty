@@ -1,24 +1,46 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Options;
-
 namespace Scripty.Core.Output
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Diagnostics.CodeAnalysis;
+    using System.IO;
+    using System.Linq;
+    using System.Text;
+    using System.Threading.Tasks;
+
+    [SuppressMessage("ReSharper", "ConvertToAutoProperty")]
     public class OutputFileCollection : OutputFile
     {
+        #region "private fields"
+
         private readonly string _scriptFilePath;
-        private readonly Dictionary<string, OutputFileWriter> _outputFiles
-            = new Dictionary<string, OutputFileWriter>();
-        private string _filePath;
+        private string _targetFilePath;
+        private string _tempFilePath;
         private OutputFile _defaultOutput;
-
         private bool _disposed;
+        
+        #endregion // #region "private fields"
 
-        private OutputFile DefaultOutput => _defaultOutput ?? (_defaultOutput = this[FilePath]);
+        #region "props and const"
+
+        public const string DEFAULT_TARGET_EXTENSION = ".cs";
+        public const string DEFAULT_TEMP_EXTENSION = ".tmp";
+
+        /// <summary>
+        ///     The temporary files where script output is saved to before writing to the target files.
+        /// </summary>
+        internal Dictionary<string, IOutputFileWriter> OutputTempFiles { get; set;} = new Dictionary<string, IOutputFileWriter>(StringComparer.OrdinalIgnoreCase);
+        
+        public override string TempFilePath => _tempFilePath;
+
+        public override string TargetFilePath => _targetFilePath;
+
+        private OutputFile DefaultOutput => _defaultOutput ?? (_defaultOutput = this[_targetFilePath]);
+        
+        #endregion #region "props"
+
+        #region "ctor"
 
         internal OutputFileCollection(string scriptFilePath)
         {
@@ -30,16 +52,15 @@ namespace Scripty.Core.Output
             {
                 throw new ArgumentException("The file path must be rooted", nameof(scriptFilePath));
             }
-
+            
             _scriptFilePath = scriptFilePath;
-            _filePath = Path.ChangeExtension(scriptFilePath, ".cs");
+            _targetFilePath = Path.ChangeExtension(scriptFilePath, DEFAULT_TARGET_EXTENSION);
+            _tempFilePath = BuildTempFilePath(_targetFilePath);
         }
 
-        /// <summary>
-        ///     When <see cref="ScriptEngine.OutputBehavior"/> is set to  <see cref="OnScriptGenerateOutputBehavior.ScriptControlsOutput"/>
-        /// this is how the script determines if the output is retained or discarded.
-        /// </summary>
-        public ScriptOutput ScriptOutput { get; set; } = ScriptOutput.Keep;
+        #endregion //#region "ctor"
+
+        #region "dispose"
 
         protected override void Dispose(bool disposing)
         {
@@ -49,13 +70,15 @@ namespace Scripty.Core.Output
             }
             _disposed = true;
 
-            foreach (OutputFileWriter outputFile in _outputFiles.Values)
+            foreach (var tmpFile in OutputTempFiles.Values)
             {
-                outputFile.Dispose();
+                tmpFile.Dispose();
             }
         }
 
-        public OutputFile this[string filePath]
+        #endregion #region "dispose"
+
+        public OutputFile this[string targetFilePath]
         {
             get
             {
@@ -63,26 +86,37 @@ namespace Scripty.Core.Output
                 {
                     throw new ObjectDisposedException(nameof(OutputFileCollection));
                 }
-                if (string.IsNullOrEmpty(filePath))
+
+                if (string.IsNullOrWhiteSpace(targetFilePath))
                 {
-                    throw new ArgumentException("Value cannot be null or empty", nameof(filePath));
+                    throw new ArgumentException("Value cannot be null or empty", nameof(targetFilePath));
                 }
 
-                filePath = Path.Combine(Path.GetDirectoryName(_scriptFilePath), filePath);
-                OutputFileWriter outputFile;
-                if (!_outputFiles.TryGetValue(filePath, out outputFile))
+                var scriptFileFolder = Path.GetDirectoryName(_scriptFilePath);
+                Debug.Assert(scriptFileFolder != null, "scriptFileFolder != null");
+
+                targetFilePath = Path.Combine(scriptFileFolder, targetFilePath);
+                var tmpFilePath = BuildTempFilePath(targetFilePath);
+
+                if (OutputTempFiles.ContainsKey(targetFilePath) == false)
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-                    outputFile = new OutputFileWriter(filePath);
-                    _outputFiles.Add(filePath, outputFile);
+                    Directory.CreateDirectory(scriptFileFolder);
+                    var outputFile = new OutputFileWriter(targetFilePath, tmpFilePath);
+                    OutputTempFiles.Add(targetFilePath, outputFile);
                 }
-                return outputFile;
+                return (OutputFile)OutputTempFiles[targetFilePath];
             }
         }
 
-        internal ICollection<IOutputFileInfo> OutputFiles => _outputFiles.Values.Cast<IOutputFileInfo>().ToList();
+        private string BuildTempFilePath(string filePath)
+        {
+            return $"{filePath}{DEFAULT_TEMP_EXTENSION}";
+        }
 
-        public override string FilePath => _filePath;
+        internal ICollection<IOutputFileInfo> OutputFileInfos
+        {
+            get { return OutputTempFiles.Values.Cast<IOutputFileInfo>().ToList(); }
+        }
 
         public OutputFileCollection SetFilePath(string filePath)
         {
@@ -91,7 +125,7 @@ namespace Scripty.Core.Output
                 throw new ArgumentNullException(nameof(filePath));
             }
 
-            _filePath = filePath;
+            _targetFilePath = filePath;
             _defaultOutput = null;
             return this;
         }
@@ -103,7 +137,7 @@ namespace Scripty.Core.Output
                 throw new ArgumentNullException(nameof(extension));
             }
 
-            _filePath = Path.ChangeExtension(_scriptFilePath, extension);
+            _targetFilePath = Path.ChangeExtension(_scriptFilePath, extension);
             _defaultOutput = null;
             return this;
         }
@@ -129,7 +163,7 @@ namespace Scripty.Core.Output
             get { return DefaultOutput.IndentString; }
             set { DefaultOutput.IndentString = value; }
         }
-        
+
         public override bool FormatterEnabled
         {
             get { return DefaultOutput.FormatterEnabled; }
@@ -219,7 +253,8 @@ namespace Scripty.Core.Output
 
         public override OutputFile WriteLine(string format, object arg0, object arg1) => DefaultOutput.WriteLine(format, arg0, arg1);
 
-        public override OutputFile WriteLine(string format, object arg0, object arg1, object arg2) => DefaultOutput.WriteLine(format, arg0, arg1, arg2);
+        public override OutputFile WriteLine(string format, object arg0, object arg1, object arg2)
+            => DefaultOutput.WriteLine(format, arg0, arg1, arg2);
 
         public override OutputFile WriteLine(string format, params object[] arg) => DefaultOutput.WriteLine(format, arg);
 
@@ -248,5 +283,7 @@ namespace Scripty.Core.Output
             get { return DefaultOutput.NewLine; }
             set { DefaultOutput.NewLine = value; }
         }
+
+
     }
 }

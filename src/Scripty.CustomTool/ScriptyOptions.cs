@@ -25,7 +25,7 @@ namespace Scripty
 
         public ScriptyOptions()
         {
-            OnScriptGenerateOutputBehavior = OnScriptGenerateOutputBehavior.AlwaysOverwriteOutput;
+            OutputBehavior = OutputBehavior.DontOverwriteIfEvaluationFails;
         }
 
         #endregion
@@ -39,7 +39,7 @@ namespace Scripty
         [Category("Behaviors")]
         [DisplayName("Script Output Handling")]
         [Description("What should scripty do in regards to output handling? The default is AlwaysOverwriteOutput.")]
-        public OnScriptGenerateOutputBehavior OnScriptGenerateOutputBehavior { get; set; }
+        public OutputBehavior OutputBehavior { get; set; }
         
         #endregion Properties
 

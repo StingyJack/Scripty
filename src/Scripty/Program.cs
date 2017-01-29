@@ -130,7 +130,7 @@ namespace Scripty
                 // Output the set of generated files w/ build actions
                 foreach (IOutputFileInfo outputFile in task.Result.OutputFiles)
                 {
-                    Console.WriteLine($"{outputFile.BuildAction}|{outputFile.FilePath}");
+                    Console.WriteLine($"{outputFile.BuildAction}|{outputFile.TargetFilePath}({outputFile.TempFilePath})");
                 }
             }
 

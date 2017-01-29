@@ -6,11 +6,34 @@ namespace Scripty.Core.Output
 {
     public abstract class OutputFile : OutputFileTextWriter, IOutputFileInfo
     {
+        //private ScriptOutput _scriptOutput;
+        private bool _keepOutput;
+
         internal OutputFile()
         {
+            _keepOutput = true;
         }
 
-        public abstract string FilePath { get; }
+        public abstract string TargetFilePath { get; }
+        public abstract string TempFilePath { get; }
+
+        // <summary>
+        //     When <see cref="ScriptEngine.OutputBehavior"/> is set to  <see cref="OutputBehavior.ScriptControlsOutput"/>
+        // this is how the script determines if the output is retained or discarded.
+        // </summary>
+        //public ScriptOutput ScriptOutput
+        //{
+        //    get { return _scriptOutput; }
+        //    set { _scriptOutput = value; }
+        //}
+        public bool KeepOutput
+        {
+            get { return _keepOutput; }
+            set { _keepOutput = value; }
+        }
+
+
+
 
         public abstract BuildAction BuildAction { get; set; }
         
@@ -209,5 +232,6 @@ namespace Scripty.Core.Output
         protected sealed override void TextWriterWriteLine(string format, object arg0, object arg1, object arg2) => WriteLine(format, arg0, arg1, arg2);
 
         protected sealed override void TextWriterWriteLine(string format, params object[] arg) => WriteLine(format, arg);
+        
     }
 }

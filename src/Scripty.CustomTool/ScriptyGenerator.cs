@@ -54,7 +54,7 @@ namespace Scripty
                 Project project = projectItem.ContainingProject;
                 Solution solution = projectItem.DTE.Solution;
                 var options = projectItem.DTE.Properties["Scripty Options", "General"];
-                var onSaveBehave = (OnScriptGenerateOutputBehavior)options.Item("OnScriptGenerateOutputBehavior").Value;
+                var onSaveBehave = (OutputBehavior)options.Item("OnScriptGenerateOutputBehavior").Value;
                 
                 // TODO: add unit tests for changed parts in engine
                 // TODO: add cmd line switch for console
@@ -63,8 +63,10 @@ namespace Scripty
 
                 // Run the generator and get the results
                 ScriptSource source = new ScriptSource(inputFilePath, inputFileContent);
-                ScriptEngine engine = new ScriptEngine(project.FullName);
-                engine.OutputBehavior = onSaveBehave;
+                ScriptEngine engine = new ScriptEngine(project.FullName)
+                {
+                    OutputBehavior = onSaveBehave
+                };
                 ScriptResult result = engine.Evaluate(source).Result;
 
                 // Report errors
@@ -81,8 +83,8 @@ namespace Scripty
                 foreach (IOutputFileInfo outputFile in result.OutputFiles.Where(x => x.BuildAction != BuildAction.GenerateOnly))
                 {
                     ProjectItem outputItem = projectItem.ProjectItems.Cast<ProjectItem>()
-                        .FirstOrDefault(x => x.Properties.Item("FullPath")?.Value?.ToString() == outputFile.FilePath)
-                        ?? projectItem.ProjectItems.AddFromFile(outputFile.FilePath);
+                        .FirstOrDefault(x => x.Properties.Item("FullPath")?.Value?.ToString() == outputFile.TargetFilePath)
+                        ?? projectItem.ProjectItems.AddFromFile(outputFile.TargetFilePath);
                     outputItem.Properties.Item("ItemType").Value = outputFile.BuildAction.ToString();
                 }
 
@@ -91,14 +93,14 @@ namespace Scripty
                 if (File.Exists(logPath))
                 {
                     string[] logLines = File.ReadAllLines(logPath);
-                    foreach (string fileToRemove in logLines.Where(x => result.OutputFiles.All(y => y.FilePath != x)))
+                    foreach (string fileToRemove in logLines.Where(x => result.OutputFiles.All(y => y.TargetFilePath != x)))
                     {
                         solution.FindProjectItem(fileToRemove)?.Delete();
                     }
                 }
 
                 // Create the log file
-                return Encoding.UTF8.GetBytes(string.Join(Environment.NewLine, result.OutputFiles.Select(x => x.FilePath)));
+                return Encoding.UTF8.GetBytes(string.Join(Environment.NewLine, result.OutputFiles.Select(x => x.TargetFilePath)));
             }
             catch (Exception ex)
             {
