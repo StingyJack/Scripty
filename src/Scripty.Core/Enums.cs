@@ -1,5 +1,7 @@
 ﻿namespace Scripty.Core
 {
+    using Output;
+
     /// <summary>
     ///      How to handle output attached to the executing script
     /// </summary>
@@ -17,7 +19,7 @@
 
         /// <summary>
         ///     The script controls what to do with output by using the 
-        /// <see cref=" ScriptOutput"/> value
+        /// <see cref=" OutputFile.KeepOutput"/> value
         /// </summary>
         ScriptControlsOutput,
 
@@ -29,16 +31,4 @@
         /// </remarks>
         NeverGenerateOutput
     }
-
-
-    /// <summary>
-    ///     If <see cref="OutputBehavior.ScriptControlsOutput"/> is set, this
-    /// is how the script controls it 
-    /// </summary>
-    public enum ScriptOutput
-    {
-        Keep,
-        Ignore
-    }
-
 }

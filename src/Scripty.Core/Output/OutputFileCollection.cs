@@ -9,35 +9,54 @@ namespace Scripty.Core.Output
     using System.Text;
     using System.Threading.Tasks;
 
+    /// <summary>
+    ///     Serves as both a collection of output files and as a representation 
+    ///     of a single default output file for ease of use
+    /// </summary>
+    /// <seealso cref="Scripty.Core.Output.OutputFile" />
     [SuppressMessage("ReSharper", "ConvertToAutoProperty")]
     public class OutputFileCollection : OutputFile
     {
         #region "private fields"
 
         private readonly string _scriptFilePath;
-        private string _targetFilePath;
-        private string _tempFilePath;
+        private string _defaultTargetFilePath;
+        private readonly string _defaultTempFilePath;
         private OutputFile _defaultOutput;
         private bool _disposed;
+        private bool _hasDefaultOutputBeenUsed = false;
         
         #endregion // #region "private fields"
 
         #region "props and const"
 
         public const string DEFAULT_TARGET_EXTENSION = ".cs";
-        public const string DEFAULT_TEMP_EXTENSION = ".tmp";
+        public const string DEFAULT_TEMP_EXTENSION = ".scriptytmp";
 
         /// <summary>
         ///     The temporary files where script output is saved to before writing to the target files.
         /// </summary>
         internal Dictionary<string, IOutputFileWriter> OutputTempFiles { get; set;} = new Dictionary<string, IOutputFileWriter>(StringComparer.OrdinalIgnoreCase);
-        
-        public override string TempFilePath => _tempFilePath;
 
-        public override string TargetFilePath => _targetFilePath;
+        /// <summary>
+        ///     The default temporary file path.
+        /// </summary>
+        public override string TempFilePath => _defaultTempFilePath;
 
-        private OutputFile DefaultOutput => _defaultOutput ?? (_defaultOutput = this[_targetFilePath]);
-        
+        /// <summary>
+        ///     The default target file path
+        /// </summary>
+        public override string TargetFilePath => _defaultTargetFilePath;
+
+        private OutputFile DefaultOutput
+        {
+            get
+            {
+                _hasDefaultOutputBeenUsed = true;
+                return _defaultOutput ?? (_defaultOutput = this[_defaultTargetFilePath]);
+            }
+        }
+
         #endregion #region "props"
 
         #region "ctor"
@@ -54,8 +73,10 @@ namespace Scripty.Core.Output
             }
             
             _scriptFilePath = scriptFilePath;
-            _targetFilePath = Path.ChangeExtension(scriptFilePath, DEFAULT_TARGET_EXTENSION);
-            _tempFilePath = BuildTempFilePath(_targetFilePath);
+            _defaultTargetFilePath = Path.ChangeExtension(scriptFilePath, DEFAULT_TARGET_EXTENSION);
+            _defaultTempFilePath = BuildTempFilePath(_defaultTargetFilePath);
+
+            RegisterOutputFile(_defaultTargetFilePath);
         }
 
         #endregion //#region "ctor"
@@ -78,6 +99,58 @@ namespace Scripty.Core.Output
 
         #endregion #region "dispose"
 
+        internal List<IOutputFileWriter> GetOutputFilesForWriting()
+        {
+            var returnValue = new List<IOutputFileWriter>();
+            foreach (var of in OutputTempFiles.Values)
+            {
+                of.Flush(); //the output is being retrieved for final writing
+                of.Close(); // no reason to keep these open anymore
+                
+                if (of.KeepOutput == false)
+                {
+                    continue;
+                }
+
+                if (_hasDefaultOutputBeenUsed == false 
+                    && of.TargetFilePath.Equals(_defaultTargetFilePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue; //default file never used
+                }
+
+                if (_hasDefaultOutputBeenUsed == true
+                   && of.TargetFilePath.Equals(_defaultTargetFilePath, StringComparison.OrdinalIgnoreCase)
+                   && KeepOutput == false)
+                {
+                    continue; //default file has been used, but instructed to not retain the output
+                }
+
+                returnValue.Add(of);
+            }
+            return returnValue;
+        }
+
+        internal void CleanupAllTempData()
+        {
+            foreach (var outputFile in OutputTempFiles.Values)
+            {
+                if (File.Exists(outputFile.TempFilePath))
+                {
+                    outputFile.Flush();
+                    outputFile.Close();
+
+                    try
+                    {
+                        File.Delete(outputFile.TempFilePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.Assert(ex != null, $"Couldnt clean up temp data {ex}");
+                    }
+                }
+            }
+        }
+
         public OutputFile this[string targetFilePath]
         {
             get
@@ -91,28 +164,37 @@ namespace Scripty.Core.Output
                 {
                     throw new ArgumentException("Value cannot be null or empty", nameof(targetFilePath));
                 }
-
-                var scriptFileFolder = Path.GetDirectoryName(_scriptFilePath);
-                Debug.Assert(scriptFileFolder != null, "scriptFileFolder != null");
-
-                targetFilePath = Path.Combine(scriptFileFolder, targetFilePath);
-                var tmpFilePath = BuildTempFilePath(targetFilePath);
-
-                if (OutputTempFiles.ContainsKey(targetFilePath) == false)
-                {
-                    Directory.CreateDirectory(scriptFileFolder);
-                    var outputFile = new OutputFileWriter(targetFilePath, tmpFilePath);
-                    OutputTempFiles.Add(targetFilePath, outputFile);
-                }
+                
+                targetFilePath = RegisterOutputFile(targetFilePath);
                 return (OutputFile)OutputTempFiles[targetFilePath];
             }
         }
 
-        private string BuildTempFilePath(string filePath)
+        private string RegisterOutputFile(string targetFilePath)
         {
-            return $"{filePath}{DEFAULT_TEMP_EXTENSION}";
+            var scriptFileFolder = Path.GetDirectoryName(_scriptFilePath);
+            Debug.Assert(scriptFileFolder != null, "scriptFileFolder != null");
+
+            targetFilePath = Path.Combine(scriptFileFolder, targetFilePath);
+            var tmpFilePath = BuildTempFilePath(targetFilePath);
+
+            if (OutputTempFiles.ContainsKey(targetFilePath) == false)
+            {
+                Directory.CreateDirectory(scriptFileFolder);
+                var outputFile = new OutputFileWriter(targetFilePath, tmpFilePath);
+                OutputTempFiles.Add(targetFilePath, outputFile);
+            }
+            return targetFilePath;
         }
 
+        private string BuildTempFilePath(string filePath)
+        {
+            return $"{filePath}.{Path.GetRandomFileName()}.{DEFAULT_TEMP_EXTENSION}";
+        }
+
+        /// <summary>
+        ///     Returns
+        /// </summary>
         internal ICollection<IOutputFileInfo> OutputFileInfos
         {
             get { return OutputTempFiles.Values.Cast<IOutputFileInfo>().ToList(); }
@@ -125,7 +207,7 @@ namespace Scripty.Core.Output
                 throw new ArgumentNullException(nameof(filePath));
             }
 
-            _targetFilePath = filePath;
+            _defaultTargetFilePath = filePath;
             _defaultOutput = null;
             return this;
         }
@@ -137,7 +219,7 @@ namespace Scripty.Core.Output
                 throw new ArgumentNullException(nameof(extension));
             }
 
-            _targetFilePath = Path.ChangeExtension(_scriptFilePath, extension);
+            _defaultTargetFilePath = Path.ChangeExtension(_scriptFilePath, extension);
             _defaultOutput = null;
             return this;
         }
@@ -284,6 +366,9 @@ namespace Scripty.Core.Output
             set { DefaultOutput.NewLine = value; }
         }
 
-
+        public override bool IsClosed
+        {
+            get { return DefaultOutput.IsClosed; }
+        }
     }
 }

@@ -10,5 +10,7 @@ namespace Scripty.Core.Output
         bool FormatterEnabled { get; }
         FormatterOptions FormatterOptions { get; }
         bool KeepOutput { get; set; }
+        bool OutputWasGenerated { get; set; }
+        bool IsClosed { get; }
     }
 }

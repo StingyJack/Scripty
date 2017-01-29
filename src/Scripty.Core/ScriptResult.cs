@@ -6,8 +6,14 @@ namespace Scripty.Core
 {
     public class ScriptResult
     {
-        public ICollection<IOutputFileInfo> OutputFiles { get; }
-        public ICollection<ScriptError> Errors { get; }
+        public ICollection<IOutputFileInfo> OutputFiles { get; internal set; }
+        public ICollection<ScriptError> Errors { get; internal set; }
+
+        internal ScriptResult()
+        {
+            OutputFiles = new List<IOutputFileInfo>();
+            Errors = new List<ScriptError>();
+        }
 
         internal ScriptResult(ICollection<IOutputFileInfo> outputFiles)
             : this(outputFiles, Array.Empty<ScriptError>())

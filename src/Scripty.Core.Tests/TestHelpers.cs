@@ -2,14 +2,22 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
 
-    public static class TestHelpers
+    public class TestHelpers
     {
         public const string TEST_FILE_CONTENT = "TESTCONTENT";
-        private static readonly string _ProjectFilePath = GetFilePathRelativeToProjectRoot("Scripty.Core.Tests.csproj");
+        private readonly string _ProjectFilePath;
+        private string _TestFileSubfolder;
 
-        public static ScriptEngine BuildScriptEngine()
+        public TestHelpers(string testFileSubfolder = "")
+        {
+            _ProjectFilePath = Path.Combine(GetProjectRootFolder(), "Scripty.Core.Tests.csproj");
+            _TestFileSubfolder = testFileSubfolder;
+        }
+
+        public ScriptEngine BuildScriptEngine()
         {
             var se = new ScriptEngine(_ProjectFilePath);
             return se;
@@ -20,39 +28,57 @@
             return Path.GetFullPath($"{AppDomain.CurrentDomain.BaseDirectory}/../../");
         }
 
-        public static string GetFilePathRelativeToProjectRoot(string fileName)
+        public string GetTestFileSubFolder()
         {
-            return Path.Combine(GetProjectRootFolder(), fileName);
+            return Path.Combine(GetProjectRootFolder(), _TestFileSubfolder);
         }
 
-        public static string GetFileContent(string fileName)
+        public string GetTestFilePath(string fileName)
         {
-            return File.ReadAllText(GetFilePathRelativeToProjectRoot(fileName));
+            return Path.Combine(GetTestFileSubFolder(), fileName);
         }
 
-        public static void RemoveFiles(List<string> filesToRemoveIfPresent)
+        public string GetFileContent(string fileName)
+        {
+            return File.ReadAllText(GetTestFilePath(fileName));
+        }
+
+        public void RemoveFiles(List<string> filesToRemoveIfPresent)
         {
 
             if (filesToRemoveIfPresent != null)
             {
                 foreach (var file in filesToRemoveIfPresent)
                 {
-                    if (File.Exists(file))
+                    var filePath = GetTestFilePath(file);
+
+                    if (File.Exists(filePath))
                     {
-                        File.Delete(file);
+                        File.Delete(filePath);
                     }
                 }
             }
 
         }
 
-        public static void CreateFiles(List<string> filesToCreateIfNotPresent)
+
+        public void RemoveFiles(string filePattern)
+        {
+            foreach (var file in Directory.GetFiles(GetTestFileSubFolder(), filePattern))
+            {
+                File.Delete(file);
+            }
+        }
+
+        public void CreateFiles(List<string> filesToCreateIfNotPresent)
         {
             foreach (var file in filesToCreateIfNotPresent)
             {
-                if (File.Exists(file) == false)
+                var filePath = GetTestFilePath(file);
+
+                if (File.Exists(filePath) == false)
                 {
-                    File.WriteAllText(file, TEST_FILE_CONTENT);
+                    File.WriteAllText(filePath, TEST_FILE_CONTENT);
                 }
             }
 

@@ -20,6 +20,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{4D4EB799-2C47-427E-ADB3-E0329E503F35}"
 	ProjectSection(SolutionItems) = preProject
 		..\Debugging.md = ..\Debugging.md
+		Emit and Debug example.cs = Emit and Debug example.cs
 		..\LICENSE = ..\LICENSE
 		..\Readme.md = ..\Readme.md
 		..\ReleaseNotes.md = ..\ReleaseNotes.md

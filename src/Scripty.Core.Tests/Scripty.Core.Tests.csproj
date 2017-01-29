@@ -80,6 +80,7 @@
     <None Include="packages.config" />
     <None Include="TestCsx\SimpleCompileFailure.csx" />
     <None Include="TestCsx\SimpleScriptIgnore.csx" />
+    <AdditionalFiles Include="TestCsx\MultiFileScriptControl.csx" />
     <None Include="TestCsx\SimpleScriptKeep.csx" />
     <None Include="TestCsx\SimpleSuccess.csx" />
   </ItemGroup>

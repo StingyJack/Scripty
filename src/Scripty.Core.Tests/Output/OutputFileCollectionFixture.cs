@@ -9,7 +9,7 @@ using Scripty.Core.Output;
 namespace Scripty.Core.Tests.Output
 {
     [TestFixture]
-    [Parallelizable(ParallelScope.Self | ParallelScope.Children)]
+    [Parallelizable(ParallelScope.None | ParallelScope.None)]
     public class OutputFileCollectionFixture : BaseFixture
     {
         public class SetExtensionTests : OutputFileCollectionFixture

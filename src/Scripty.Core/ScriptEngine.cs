@@ -10,6 +10,8 @@ using Scripty.Core.ProjectTree;
 
 namespace Scripty.Core
 {
+    using System.Diagnostics;
+
     public class ScriptEngine
     {
         private readonly string _projectFilePath;
@@ -48,9 +50,9 @@ namespace Scripty.Core
                     "Scripty.Core.Output",
                     "Scripty.Core.ProjectTree");
 
-            ScriptResult scriptResult;
+            var scriptResult = new ScriptResult();
             Exception caughtException = null;
-            
+
 
             using (ScriptContext context = GetContext(source.FilePath))
             {
@@ -58,52 +60,51 @@ namespace Scripty.Core
 
                 try
                 {
-                    //await CSharpScript.EvaluateAsync(source.Code, options, context);
-                    var globals = await CSharpScript.RunAsync(source.Code, options, context, typeof(ScriptContext));
-                    
-                    scriptResult = new ScriptResult(context.Output.OutputFileInfos);
+                    await CSharpScript.EvaluateAsync(source.Code, options, context);
+                    //var globals = await CSharpScript.RunAsync(source.Code, options, context, typeof(ScriptContext));
+
+                    scriptResult.OutputFiles = context.Output.OutputFileInfos;
                 }
                 catch (CompilationErrorException compilationError)
                 {
                     caughtException = compilationError;
-
-                    scriptResult = new ScriptResult(context.Output.OutputFileInfos,
-                        compilationError.Diagnostics
-                            .Select(x => new ScriptError
-                            {
-                                Message = x.GetMessage(),
-                                Line = x.Location.GetLineSpan().StartLinePosition.Line,
-                                Column = x.Location.GetLineSpan().StartLinePosition.Character,
-                                FilePath =x.Location.GetLineSpan().Path
-                            })
-                            .ToList());
+                    scriptResult.OutputFiles = context.Output.OutputFileInfos;
+                    scriptResult.Errors = compilationError.Diagnostics
+                        .Select(x => new ScriptError
+                        {
+                            Message = x.GetMessage(),
+                            Line = x.Location.GetLineSpan().StartLinePosition.Line,
+                            Column = x.Location.GetLineSpan().StartLinePosition.Character,
+                            FilePath = x.Location.GetLineSpan().Path
+                        })
+                        .ToList();
                 }
                 catch (AggregateException aggregateException)
                 {
                     caughtException = aggregateException;
 
-                    scriptResult = new ScriptResult(context.Output.OutputFileInfos,
-                        aggregateException.InnerExceptions
+                    scriptResult.OutputFiles = context.Output.OutputFileInfos;
+                    scriptResult.Errors = aggregateException.InnerExceptions
                             .Select(x => new ScriptError
                             {
                                 Message = x.ToString()
-                            }).ToList());
+                            }).ToList();
                 }
                 catch (Exception ex)
                 {
-                    caughtException = ex; 
+                    caughtException = ex;
 
-                    scriptResult = new ScriptResult(context.Output.OutputFileInfos,
-                        new[]
+                    scriptResult.OutputFiles = context.Output.OutputFileInfos;
+                    scriptResult.Errors = new[] {
+                        new ScriptError
                         {
-                            new ScriptError
-                            {
                                 Message = ex.ToString()
                             }
-                        });
+                        };
                 }
 
-                switch (OutputBehavior) {
+                switch (OutputBehavior)
+                {
 
                     case OutputBehavior.DontOverwriteIfEvaluationFails:
                         if (caughtException != null)
@@ -126,35 +127,24 @@ namespace Scripty.Core
                 {
                     await WriteAllOutputFiles(context);
                 }
-                CleanupTempFiles(context);
+                context.Output.CleanupAllTempData();
             }
             return scriptResult;
         }
 
         protected async Task WriteAllOutputFiles(ScriptContext context)
         {
-            foreach (var outputFile in context.Output.OutputTempFiles.Values)
+            foreach (var outputFile in context.Output.GetOutputFilesForWriting())
             {
-                outputFile.Flush();
-                outputFile.Close();
 
-                if (outputFile.KeepOutput == false)
-                {
-                    //TODO: Figure out why there is a discrepancy here.
-                    //Per the script, this is be getting set correctly...
-                    //   context.Output.KeepOutput == false
-                    //But this never seems to change...
-                    //  context.Output.OutputTempFiles.First().Value.KeepOutput == true
-
-                    continue;
-                }
-                
                 if (File.Exists(outputFile.TargetFilePath))
                 {
                     File.Delete(outputFile.TargetFilePath);
                 }
 
+                //if temp files not wanted, perhaps here is where a memory stream could be created
                 File.Move(outputFile.TempFilePath, outputFile.TargetFilePath);
+                outputFile.OutputWasGenerated = true;
 
                 if (outputFile.FormatterEnabled)
                 {
@@ -166,24 +156,6 @@ namespace Scripty.Core
                     var resultContent = await resultDocument.GetTextAsync();
 
                     File.WriteAllText(outputFile.TargetFilePath, resultContent.ToString());
-                }
-            }
-        }
-
-        protected void CleanupTempFiles(ScriptContext context)
-        {
-            foreach (var outputFile in context.Output.OutputTempFiles.Values)
-            {
-                if (File.Exists(outputFile.TempFilePath))
-                {
-                    try
-                    {
-                        File.Delete(outputFile.TempFilePath);
-                    }
-                    catch (Exception )
-                    {
-                        //swallow
-                    }
                 }
             }
         }

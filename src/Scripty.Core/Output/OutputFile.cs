@@ -1,45 +1,39 @@
 using System;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Options;
 
 namespace Scripty.Core.Output
 {
     public abstract class OutputFile : OutputFileTextWriter, IOutputFileInfo
     {
-        //private ScriptOutput _scriptOutput;
-        private bool _keepOutput;
-
         internal OutputFile()
         {
-            _keepOutput = true;
+            KeepOutput = true;
         }
 
         public abstract string TargetFilePath { get; }
         public abstract string TempFilePath { get; }
 
-        // <summary>
-        //     When <see cref="ScriptEngine.OutputBehavior"/> is set to  <see cref="OutputBehavior.ScriptControlsOutput"/>
-        // this is how the script determines if the output is retained or discarded.
-        // </summary>
-        //public ScriptOutput ScriptOutput
-        //{
-        //    get { return _scriptOutput; }
-        //    set { _scriptOutput = value; }
-        //}
-        public bool KeepOutput
-        {
-            get { return _keepOutput; }
-            set { _keepOutput = value; }
-        }
+        /// <summary>
+        ///     When <see cref="ScriptEngine.OutputBehavior"/> is set to  <see cref="OutputBehavior.ScriptControlsOutput"/>
+        /// this is how the script determines if the output is retained or discarded.
+        /// </summary>
+        public bool KeepOutput { get; set; }
 
-
-
+        /// <summary>
+        ///     If any output was generated from this instance
+        /// </summary>
+        public bool OutputWasGenerated { get; set; }
 
         public abstract BuildAction BuildAction { get; set; }
         
         public abstract bool FormatterEnabled { get; set; }
 
         public abstract FormatterOptions FormatterOptions { get; }
+
+        /// <summary>
+        ///     True if the output was closed for further writing
+        /// </summary>
+        public abstract bool IsClosed { get; }
 
         /// <summary>
         /// Adds another level of indentation to the output content.
