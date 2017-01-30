@@ -8,15 +8,10 @@
     public enum OutputBehavior
     {
         /// <summary>
-        ///      If script execution produces errors, the output should be left unaltered
+        ///      If script execution produces errors, the output should be left unaltered. This is the default.
         /// </summary>
         DontOverwriteIfEvaluationFails,
-
-        // <summary>
-        //     If script compilation produces errors, the output should be left unaltered
-        // </summary> 
-        //DontOverwriteIfCompilationFails, //for future
-
+        
         /// <summary>
         ///     The script controls what to do with output by using the 
         /// <see cref=" OutputFile.KeepOutput"/> value

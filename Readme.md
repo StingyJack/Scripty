@@ -195,6 +195,39 @@ The following global properties are available when evaluating your script with S
     Output["embedded.xml"].BuildAction = BuildAction.EmbeddedResource;
     ```
 
+  Controlling the **Output Behavior** for all or individual files is also available. There are three options...
+
+  - `OutputBehavior.DontOverwriteIfEvaluationFails` - If script execution produces errors, no output should be produced or altered. 
+  - `OutputBehavior.NeverGenerateOutput` - Saving script ouput is never attempted. This is useful when using scripty as a 
+  utility (inside or outside of VS).  
+  - `OutputBehavior.ScriptControlsOutput` - The script controls what to do with output by using the `.KeepOutput`"/> property value of .
+  
+  If ScriptControlsOutput is set, then this is how to control it in script. The last value stored in this variable will be the 
+  value used during output generation.
+  ```
+  //Save the default output (scriptName.cs)
+  Output.KeepOutput = true;
+
+  //Discard the default output
+  Output.KeepOutput = false;
+
+  //Keep the output of fileName
+  Output[fileName].KeepOutput = true;
+  
+  //Discard the output of fileName
+  Output[fileName].KeepOutput = false;
+  ```
+  More examples in the unit tests
+
+  In Visual Studio, the default output behavior can be set by navigating to Tools -> Options -> Scripty Options and adjusting the value. By default, `DontOverwriteIfEvaluationFails`
+  is chosen. 
+
+  Command line syntax [below](##Scripty)
+  
+
+
+
+
 # Libraries
 
 Scripty support is provided via a variety of libraries (and corresponding NuGet packages) for different scenarios.
@@ -225,12 +258,17 @@ A console application that can evaluate Scripty scripts. This can be used to int
 
 ```
 >Scripty.exe --help
-usage:  <ProjectFilePath> <ScriptFilePaths>...
-
+usage: <-e> <outputBehavior> <ProjectFilePath> <ScriptFilePaths>...
+    <-e>                    Output the full exception details instead of just the .Message value
+    <outputBehavior>        One and only one (or none) of these values...
+                             --outnoc for DontOverwriteIfEvaluationFails (this option is used if none are specified)
+                             --outnev for NeverGenerateOutput
+                             --outscr for ScriptControlsOutput
     <ProjectFilePath>       The full path of the project file.
     <ScriptFilePaths>...    The path(s) of script files to evaluate (can
                             be absolute or relative to the project).
 ```
+
 
 ## Scripty.Core
 
