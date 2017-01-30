@@ -56,10 +56,13 @@ namespace Scripty
                 var options = projectItem.DTE.Properties["Scripty Options", "General"];
                 var onSaveBehave = (OutputBehavior)options.Item("OnScriptGenerateOutputBehavior").Value;
 
-                // TODO: add cmd line switch for console
-                // TODO: Add per-file override
-                // TODO: Add commmand and context menu
-                // TODO: This may be a cheap intellisense get https://msdn.microsoft.com/en-us/library/ee372314.aspx
+                // TODO: Add docs
+                // TODO: squash and review
+
+
+                // TODO: Add new issue for per-file override
+                // TODO: Add new issue for commmand and context menu (Run with Scripty, Debug with Scripty)
+                // TODO: Add new issue This may be a cheap intellisense get https://msdn.microsoft.com/en-us/library/ee372314.aspx
                 //      At least for the context object and its derivatives.
 
                 // Run the generator and get the results

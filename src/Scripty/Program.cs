@@ -28,12 +28,19 @@ namespace Scripty
             Exception exception = e.ExceptionObject as Exception;
             if (exception != null)
             {
-                Console.Error.WriteLine(exception.ToString());
+                if (_settings.ShowFullExceptionDetails)
+                {
+                    Console.Error.WriteLine(exception.ToString());
+                }
+                else
+                {
+                    Console.Error.WriteLine(exception.Message);
+                }
             }
             Environment.Exit((int) ExitCode.UnhandledError);
         }
 
-        private readonly Settings _settings = new Settings();
+        private static readonly Settings _settings = new Settings();
 
         private int Run(string[] args)
         {
@@ -74,6 +81,7 @@ namespace Scripty
             // Get the script engine
             string projectFilePath = Path.Combine(Environment.CurrentDirectory, _settings.ProjectFilePath);
             ScriptEngine engine = new ScriptEngine(projectFilePath);
+            engine.OutputBehavior = _settings.GetOutputBehavior();
 
             // Get script files if none were specified
             IReadOnlyList<string> finalScriptFilePaths;
