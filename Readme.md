@@ -216,8 +216,10 @@ The following global properties are available when evaluating your script with S
   
   //Discard the output of fileName
   Output[fileName].KeepOutput = false;
+
+  //... more examples in the unit tests
   ```
-  More examples in the unit tests
+  
 
   In Visual Studio, the default output behavior can be set by navigating to Tools -> Options -> Scripty Options and adjusting the value. By default, `DontOverwriteIfEvaluationFails`
   is chosen. 
@@ -258,17 +260,27 @@ A console application that can evaluate Scripty scripts. This can be used to int
 
 ```
 >Scripty.exe --help
-usage: <-e> <outputBehavior> <ProjectFilePath> <ScriptFilePaths>...
-    <-e>                    Output the full exception details instead of just the .Message value
-    <outputBehavior>        One and only one (or none) of these values...
-                             --outnoc for DontOverwriteIfEvaluationFails (this option is used if none are specified)
-                             --outnev for NeverGenerateOutput
-                             --outscr for ScriptControlsOutput
+usage: scripty [-e] [--attach] [--outnoc] [--outnev] [--outscr] [--]
+               <ProjectFilePath> <ScriptFilePaths>...
+
+    -e                      Display full exception details instead of
+                            just the message
+
+    --attach                Pause execution at the start of the program
+                            until a debugger is attached.
+
+    --outnoc                Do not produce or overwrite output on
+                            compile errors. This is the default.
+    --outnev                Do not produce or overwrite output.
+    --outscr                The script determines what output is
+                            retained.
+
     <ProjectFilePath>       The full path of the project file.
     <ScriptFilePaths>...    The path(s) of script files to evaluate (can
                             be absolute or relative to the project).
 ```
-
+Omitting an `--out*` argument results in using `--outnoc`, the current behavior, and only 
+one of the three `--out*` parameters can be used at a time. 
 
 ## Scripty.Core
 
@@ -281,3 +293,5 @@ A Cake addin for Scripty that allows you to evaluate Scripty scripts in Cake. No
 # Help!
 
 If you need help, have a feature request, or notice a bug, just submit a GitHub issue.
+
+Or if you want to give it a try, check the [Debugging Guide](docs/Debugging)

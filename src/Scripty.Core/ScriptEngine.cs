@@ -61,8 +61,6 @@ namespace Scripty.Core
                 try
                 {
                     await CSharpScript.EvaluateAsync(source.Code, options, context);
-                    //var globals = await CSharpScript.RunAsync(source.Code, options, context, typeof(ScriptContext));
-
                     scriptResult.OutputFiles = context.Output.OutputFileInfos;
                 }
                 catch (CompilationErrorException compilationError)
