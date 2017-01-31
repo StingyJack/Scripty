@@ -23,8 +23,9 @@ namespace Scripty
     /// </remarks>
     [PackageRegistration(UseManagedResourcesOnly = true)]
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
-    [ProvideOptionPage(typeof(ScriptyOptions), "Scripty Options", "General", 100, 102, true, new string[] { "General options (C#)" })]
-    [Guid(ScriptyOptionsPackage.PackageGuidString)]
+    //[ProvideOptionPage(typeof(ScriptyOptions), ScriptyOptions.CATEGORY, ScriptyOptions.PAGE, 100, 102, true)]
+    [ProvideOptionPage(typeof(ScriptyOptions), ScriptyOptions.CATEGORY, ScriptyOptions.PAGE, 100, 102, true)]
+    [Guid(PackageGuidString)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
     public sealed class ScriptyOptionsPackage : Package
     {
@@ -56,5 +57,6 @@ namespace Scripty
         }
 
         #endregion
+        
     }
 }

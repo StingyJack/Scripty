@@ -53,14 +53,15 @@ namespace Scripty
                 string inputFilePath = projectItem.Properties.Item("FullPath").Value.ToString();
                 Project project = projectItem.ContainingProject;
                 Solution solution = projectItem.DTE.Solution;
-                var options = projectItem.DTE.Properties["Scripty Options", "General"];
-                var onSaveBehave = (OutputBehavior)options.Item("OnScriptGenerateOutputBehavior").Value;
+
+                var options = projectItem.DTE.Properties[ScriptyOptions.CATEGORY, ScriptyOptions.PAGE];
+                var outputBehavior = (OutputBehavior)options.Item(ScriptyOptions.ITEM_OUTPUT_BEHAVIOR).Value;
                 
                 // Run the generator and get the results
                 ScriptSource source = new ScriptSource(inputFilePath, inputFileContent);
                 ScriptEngine engine = new ScriptEngine(project.FullName)
                 {
-                    OutputBehavior = onSaveBehave
+                    OutputBehavior = outputBehavior
                 };
                 ScriptResult result = engine.Evaluate(source).Result;
 
