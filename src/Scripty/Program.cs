@@ -79,8 +79,16 @@ namespace Scripty
             }
 
             // Get the script engine
+            string solutionFilePath = null;
             string projectFilePath = Path.Combine(Environment.CurrentDirectory, _settings.ProjectFilePath);
-            ScriptEngine engine = new ScriptEngine(projectFilePath);
+            ScriptEngine engine;
+
+            if (_settings.SolutionFilePath != null)
+            {
+                solutionFilePath = Path.Combine(Environment.CurrentDirectory, _settings.SolutionFilePath);
+            }
+
+            engine = new ScriptEngine(projectFilePath, solutionFilePath, _settings.Properties);
             engine.OutputBehavior = _settings.GetOutputBehavior();
 
             // Get script files if none were specified
@@ -136,9 +144,10 @@ namespace Scripty
                 }
 
                 // Output the set of generated files w/ build actions
+                // The MSBuild task relies on this information 
                 foreach (IOutputFileInfo outputFile in task.Result.OutputFiles)
                 {
-                    Console.WriteLine($"{outputFile.BuildAction}|{outputFile.TargetFilePath}({outputFile.TempFilePath})");
+                    Console.WriteLine($"{outputFile.BuildAction}|{outputFile.TargetFilePath}");
                 }
             }
 

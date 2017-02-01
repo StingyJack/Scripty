@@ -31,7 +31,7 @@ namespace Scripty.Core.Output
         #region "props and const"
 
         public const string DEFAULT_TARGET_EXTENSION = ".cs";
-        public const string DEFAULT_TEMP_EXTENSION = ".scriptytmp";
+        public const string DEFAULT_TEMP_EXTENSION = "scriptytmp";
 
         /// <summary>
         ///     The temporary files where script output is saved to before writing to the target files.
