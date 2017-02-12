@@ -2,24 +2,27 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics;
     using System.IO;
 
     public class TestHelpers
     {
         public const string TEST_FILE_CONTENT = "TESTCONTENT";
-        private readonly string _ProjectFilePath;
+        public string ProjectFilePath { get; }
         private string _TestFileSubfolder;
 
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="TestHelpers"/> class.
+        /// </summary>
+        /// <param name="testFileSubfolder">The test file subfolder relative to the project root.</param>
         public TestHelpers(string testFileSubfolder = "")
         {
-            _ProjectFilePath = Path.Combine(GetProjectRootFolder(), "Scripty.Core.Tests.csproj");
+            ProjectFilePath = Path.Combine(GetProjectRootFolder(), "Scripty.Core.Tests.csproj");
             _TestFileSubfolder = testFileSubfolder;
         }
 
         public ScriptEngine BuildScriptEngine()
         {
-            var se = new ScriptEngine(_ProjectFilePath);
+            var se = new ScriptEngine(ProjectFilePath);
             return se;
         }
 
@@ -41,6 +44,11 @@
         public string GetFileContent(string fileName)
         {
             return File.ReadAllText(GetTestFilePath(fileName));
+        }
+
+        public void WriteFileContent(string fileName, string fileContent)
+        {
+            File.WriteAllText(fileName, fileContent);
         }
 
         public void RemoveFiles(List<string> filesToRemoveIfPresent)

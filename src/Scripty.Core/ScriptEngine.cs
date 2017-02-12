@@ -12,6 +12,8 @@ using Scripty.Core.ProjectTree;
 namespace Scripty.Core
 {
     using System.Diagnostics;
+    using Microsoft.CodeAnalysis;
+    using Resolvers;
 
     public class ScriptEngine
     {
@@ -65,6 +67,11 @@ namespace Scripty.Core
                     "Scripty.Core",
                     "Scripty.Core.Output",
                     "Scripty.Core.ProjectTree");
+
+            //TODO: Add resolver
+            //var resolver = new InterceptDirectiveResolver();
+            //options.WithSourceResolver(resolver)
+            
 
             var scriptResult = new ScriptResult();
             Exception caughtException = null;
