@@ -2,7 +2,9 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
+    using Core.Output;
 
     public class TestHelpers
     {
@@ -74,7 +76,15 @@
         {
             foreach (var file in Directory.GetFiles(GetTestFileSubFolder(), filePattern))
             {
-                File.Delete(file);
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (Exception e)
+                {
+                    Trace.TraceError($"Failed to delete file '{file}', err: {e}");
+                }
+                
             }
         }
 
@@ -92,5 +102,17 @@
 
         }
 
+        public string[] GetFileLines(string filePath)
+        {
+            try
+            {
+                return File.ReadAllLines(filePath);
+            }
+            catch (Exception e)
+            {
+                Trace.TraceError($"Failed to get file lines. {e}");
+            }
+            return null;
+        }
     }
 }

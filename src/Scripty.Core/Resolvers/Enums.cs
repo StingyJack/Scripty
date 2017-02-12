@@ -16,11 +16,6 @@
         ///     Load the assembly into the global scope
         /// </summary>
         [Description("#r")] AssemblyRef,
-
-        /// <summary>
-        ///     The directive to attempt using a specific class file or other compileable as if it were its own compiled assembly
-        /// </summary>
-        [Description("#loadr")] LoadScriptAsAssemblyRef
     }
 
     public enum ResolutionTargetType

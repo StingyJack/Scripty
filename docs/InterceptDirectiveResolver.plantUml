@@ -1,0 +1,34 @@
+@startuml
+title Intercept Directive Resolver interactions
+
+|Incoming feeders|
+start
+:Script that references .cs file>
+:CSharp.ScriptOptions|
+:Scripty.ScriptEngine|
+
+|Main|
+:CSharp.CSharpScript| 
+
+|Interception|
+:Scripty.InterceptDirectiveResolver\n\
+  (// if the directive is for a **.cs**// \n\
+  // file, the CsRewriter is called. // \n\
+  // otherwise the directive is handled // \n\
+  // by the default resolver//) |
+:Scripty.CsRewriter|
+
+|filesystem|
+:temporary compilations and pdb\n\
+  (//required because **CSharpScript** // \n\
+  //needs Assembly.Location// )}
+
+|Interception|
+:Scripty.InterceptDirectiveResolver|
+
+|Main|
+:CSharp.CSharpScript|
+:Output;
+end
+
+@enduml

@@ -17,11 +17,17 @@ namespace Scripty.Core.Tests.TestCs
         ///     Some way to tag this or another like it as "These are specifically for scripty
         ///     to remove also" may be needed.
         /// </summary>
-        public ScriptContext Context { get; set; }
+        public ScriptContext InjectedContext { get; set; }
 
         public ReferencedClass()
         {
-            _someString = "Value";
+            _someString = $"Value_{Guid.NewGuid()}";
+            _backingField = 69;
+        }
+
+        public ReferencedClass(ScriptContext injectedContext): this()
+        {
+            InjectedContext = injectedContext;
         }
 
         public int AutoPropertySomewhereElse { get; set; }
@@ -33,7 +39,7 @@ namespace Scripty.Core.Tests.TestCs
 
         public void Owl(string message)
         {
-            Context.Output.WriteLine($"{message} - {_someString}");
+            InjectedContext.Output.WriteLine($"{message} - {_someString}");
         }
 
         public int PropertyWithBackingField

@@ -121,9 +121,7 @@
     <Compile Include="Location\DirectiveResolverTests.cs" />
     <Compile Include="EngineParams.cs" />
     <Compile Include="EngineResults.cs" />
-    <Compile Include="Location\TestCs\ReferencedClass.ExpectedResult.cs">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Compile>
+    <None Include="Location\TestCs\ReferencedClass.ExpectedResult.cs" />
     <Compile Include="Output\EngineFixture.cs" />
     <Compile Include="Output\FormatterFixture.cs" />
     <Compile Include="Output\OutputFileCollectionFixture.cs" />

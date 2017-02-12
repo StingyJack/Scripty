@@ -2,6 +2,10 @@
 #load "..\TestCs\ReferencedClass.cs"
 #load "ReferencedScript.csx"
 
-//perhaps we can do something for the packages stuff. I remember seeing there
-//was some api surfaces available to locate (and get) packages.
+//Write using supplied ScriptContext
 Output.WriteLine("namespace TestNamespace{class TestClass{public void TestMethod(){}}}");
+
+//Create instance from recompiled assembly
+var rc1 = new ReferencedClass(Context);
+Output.WriteLine($"// Emitting prop with backing field {rc1.PropertyWithBackingField}");
+rc1.Owl($"// using the referenced class to output")

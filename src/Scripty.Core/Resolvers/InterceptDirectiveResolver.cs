@@ -6,43 +6,26 @@
     using System.Diagnostics;
     using System.IO;
     using Microsoft.CodeAnalysis;
-    using Microsoft.CodeAnalysis.Text;
 
     /// <summary>
-    ///     Examines the directives present in the script source and attempts
-    /// to locate specific files for any loosely defined or relative paths.
+    ///     Intercepts #load directives that target .cs classes and provides the CSharpScript engine 
+    /// consumables that mimic the original types. Any other referenced file extension is treated 
+    /// with default SourceFileResolver behavior.
     /// </summary>
     /// <remarks>
-    /// The goal here is to take a named script source, find its target directives and resolve thier
-    /// paths (SourceFileResolver and ScriptSourceResolver does do this), as well as pick
-    ///     NamedScriptSource.csx
+    ///     CSharpScript needs an assembly with a location, and the location can only be had by writing 
+    /// an assembly to disk.
+    /// 
+    ///     Finding this earlier would have saved me a lot of time. 
+    /// http://www.strathweb.com/2016/06/implementing-custom-load-behavior-in-roslyn-scripting/
     /// </remarks>
-    public class InterceptDirectiveResolver : SourceFileResolver
+    public class InterceptDirectiveResolver : SourceReferenceResolver
     {
-        //public ScriptSource ScriptSource { get; }
-        //public ProjectRoot Project { get; }
-        //private PathResolver _pathResolver;
-
-        /*
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="DirectiveResolver"/> class.
-        /// </summary>
-        /// <param name="source">The source.</param>
-        /// <param name="project">The project, if available.</param>
-        public DirectiveResolver(ScriptSource source, ProjectRoot project = null)
-        {
-            ScriptSource = source;
-            Project = project;
-            _pathResolver = new PathResolver(source, project);
-        }
-        */
-
-        //http://www.strathweb.com/2016/06/implementing-custom-load-behavior-in-roslyn-scripting/
 
         #region "fields"
-
-        private readonly Dictionary<string, RewrittenFile> _rewrittenFiles = new Dictionary<string, RewrittenFile>(StringComparer.OrdinalIgnoreCase);
-        private readonly SourceFileResolver _sourcefileResolver;
+            
+        private readonly Dictionary<string, RewrittenAssembly> _rewrittenAssemblies = new Dictionary<string, RewrittenAssembly>(StringComparer.OrdinalIgnoreCase);
+        private readonly SourceFileResolver _sourceFileResolver;
 
         #endregion //#region "fields"
 
@@ -51,11 +34,9 @@
         /// <summary>
         ///     Initializes a new instance of the <see cref="InterceptDirectiveResolver"/> class.
         /// </summary>
-        /// <param name="searchPaths">The search paths.</param>
-        /// <param name="baseDirectory">The base directory.</param>
-        public InterceptDirectiveResolver(IEnumerable<string> searchPaths, string baseDirectory) : base(searchPaths, baseDirectory)
+        public InterceptDirectiveResolver(): this(ImmutableArray<string>.Empty, AppContext.BaseDirectory)
         {
-            _sourcefileResolver = new SourceFileResolver(searchPaths, baseDirectory);
+            
         }
 
         /// <summary>
@@ -63,50 +44,66 @@
         /// </summary>
         /// <param name="searchPaths">The search paths.</param>
         /// <param name="baseDirectory">The base directory.</param>
-        public InterceptDirectiveResolver(ImmutableArray<string> searchPaths, string baseDirectory) : base(searchPaths, baseDirectory)
+        public InterceptDirectiveResolver(ImmutableArray<string> searchPaths, string baseDirectory) 
         {
-            _sourcefileResolver = new SourceFileResolver(searchPaths, baseDirectory);
+            _sourceFileResolver = new SourceFileResolver(searchPaths, baseDirectory);
         }
 
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="InterceptDirectiveResolver"/> class.
-        /// </summary>
-        /// <param name="searchPaths">The search paths.</param>
-        /// <param name="baseDirectory">The base directory.</param>
-        /// <param name="pathMap">The path map.</param>
-        public InterceptDirectiveResolver(ImmutableArray<string> searchPaths, string baseDirectory, ImmutableArray<KeyValuePair<string, string>> pathMap) : base(searchPaths, baseDirectory, pathMap)
-        {
-            _sourcefileResolver = new SourceFileResolver(searchPaths, baseDirectory);
-        }
 
         #endregion //#region "ctors"
 
+        #region  "overrides"
 
+        
         /// <summary>
         /// Normalizes specified source path with respect to base file path.
         /// </summary>
         /// <param name="path">The source path to normalize. May be absolute or relative.</param>
         /// <param name="baseFilePath">Path of the source file that contains the <paramref name="path"/> (may also be relative), or null if not available.</param>
         /// <returns>Normalized path, or null if <paramref name="path"/> can't be normalized. The resulting path doesn't need to exist.</returns>
+        /// <remarks>
+        ///     "Normalize" is a short word for what the underlying bits are doing here. MS should make the internal FileUtilities
+        /// public.
+        /// </remarks>
         public override string NormalizePath(string path, string baseFilePath)
         {
-            var normalizedPath = base.NormalizePath(path, baseFilePath);
             var candidateType = GetResolutionTargetType(path);
+            var normalizedPath = _sourceFileResolver.NormalizePath(path, baseFilePath);
 
-            if (candidateType == ResolutionTargetType.Cs)
+            if (candidateType != ResolutionTargetType.Cs)
             {
-                var rewrittenFile = GetRewrittenFile(normalizedPath);
-
-                if (rewrittenFile == null)
-                {
-                    return normalizedPath;
-                }
-
-                return rewrittenFile.RewrittenFilePath;
+                return normalizedPath;
             }
 
-            return normalizedPath;
+            var csFilePath = CsRewriter.GetRewriteFilePath(normalizedPath);
+
+            return csFilePath;
         }
+        
+        /// <summary>
+        /// Resolves specified path with respect to base file path.
+        /// </summary>
+        /// <param name="path">The path to resolve. May be absolute or relative.</param>
+        /// <param name="baseFilePath">Path of the source file that contains the <paramref name="path" /> (may also be relative), or null if not available.</param>
+        /// <returns>
+        /// Normalized path, or null if the file can't be resolved.
+        /// </returns>
+        public override string ResolveReference(string path, string baseFilePath)
+        {
+            return _sourceFileResolver.ResolveReference(path, baseFilePath);
+        }
+
+        /// <summary>
+        /// Opens a <see cref="T:System.IO.Stream" /> that allows reading the content of the specified file.
+        /// </summary>
+        /// <param name="resolvedPath">Path returned by <see cref="M:Microsoft.CodeAnalysis.SourceReferenceResolver.ResolveReference(System.String,System.String)" />.</param>
+        /// <returns></returns>
+        public override Stream OpenRead(string resolvedPath)
+        {
+            return _sourceFileResolver.OpenRead(resolvedPath);
+        }
+
+        /*
 
         private RewrittenFile GetRewrittenFile(string normalizedPath)
         {
@@ -146,40 +143,35 @@
 
             return false;
         }
+        */
+        
+        #endregion //#region  "overrides"
 
-        /// <summary>
-        /// Opens a <see cref="Stream"/> that allows reading the content of the specified file.
-        /// </summary>
-        /// <param name="resolvedPath">Path returned by <see cref="ResolveReference(string, string)"/>.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="resolvedPath"/> is null.</exception>
-        /// <exception cref="ArgumentException"><paramref name="resolvedPath"/> is not a valid absolute path.</exception>
-        /// <exception cref="IOException">Error reading file <paramref name="resolvedPath"/>. See <see cref="Exception.InnerException"/> for details.</exception>
-        public override Stream OpenRead(string resolvedPath)
+        #region "intercept handling"
+
+        private string GetReferrerPathKey(string referrersPath)
         {
-            return base.OpenRead(resolvedPath);
+            //this may need to get full absolute pathing 
+            return referrersPath;
         }
 
-        /// <summary>
-        /// Reads the contents of <paramref name="resolvedPath"/> and returns a <see cref="SourceText"/>.
-        /// </summary>
-        /// <param name="resolvedPath">Path returned by <see cref="ResolveReference(string, string)"/>.</param>
-        public override SourceText ReadText(string resolvedPath)
-        {
-            return base.ReadText(resolvedPath);
-        }
 
-        /// <summary>
-        /// Resolves specified path with respect to base file path.
-        /// </summary>
-        /// <param name="path">The path to resolve. May be absolute or relative.</param>
-        /// <param name="baseFilePath">Path of the source file that contains the <paramref name="path"/> (may also be relative), or null if not available.</param>
-        /// <returns>Normalized path, or null if the file can't be resolved.</returns>
-        public override string ResolveReference(string path, string baseFilePath)
+        private bool IsInterceptCandidate(string referrersPath)
         {
-            return base.ResolveReference(path, baseFilePath);
-        }
+            var pathKey = GetReferrerPathKey(referrersPath);
 
-        #region "file handling"
+            if (_rewrittenAssemblies.ContainsKey(pathKey))
+            {
+                return true;
+            }
+
+            var candidateType = GetResolutionTargetType(referrersPath);
+            if (candidateType != ResolutionTargetType.Cs)
+            {
+                return true;
+            }
+            return false;
+        }
 
         private ResolutionTargetType GetResolutionTargetType(string resolutionCandidateFilePath)
         {
@@ -192,6 +184,40 @@
                 return ResolutionTargetType.Csx;
             }
             return ResolutionTargetType.Other;
+        }
+
+        /// <summary>
+        ///     Gets a rewritten assembly.
+        /// </summary>
+        /// <param name="referrersPath">The normalized referrers path.</param>
+        /// <returns></returns>
+        private RewrittenAssembly CreateRewrittenAssembly(string referrersPath)
+        {
+            try
+            {
+                var pathKey = GetReferrerPathKey(referrersPath);
+
+                if (_rewrittenAssemblies.ContainsKey(pathKey))
+                {
+                    return _rewrittenAssemblies[pathKey];
+                }
+
+                var rwa = CsRewriter.CreateRewriteFileAsAssembly(referrersPath);
+                if (rwa.IsCompiled)
+                {
+                    _rewrittenAssemblies.Add(pathKey, rwa);
+                }
+                else
+                {
+                    Trace.TraceError($"Failed to rewrite assembly: {rwa.CompilationResult}");
+                }
+            }
+            catch (Exception e)
+            {
+                Trace.TraceError($"Failed to get rewritten assembly {e}");
+            }
+
+            return null;
         }
 
         #endregion // #region "file handling"
@@ -234,7 +260,7 @@
 
                     var unresolvedValue = GetDirectiveReference(trimmedLine, directiveType);
 
-                    var d = new ScriptDirective(scriptFullPath, lineNumber,
+                    var d = new ScriptDirective(line, scriptFullPath, lineNumber,
                             unresolvedValue, directiveType.Value);
 
                     directives.Add(d);
@@ -245,15 +271,7 @@
 
         public static DirectiveType? GetDirectiveType(string trimmedLine)
         {
-            // keep these in this order for proper result
-            //#loadr
-            //#load
-            //#r
-            if (trimmedLine.StartsWith(Consts.DIRECTIVE_LOAD_AS_ASSEMBLY, StringComparison.OrdinalIgnoreCase))
-            {
-                return DirectiveType.LoadScriptAsAssemblyRef;
-            }
-            else if (trimmedLine.StartsWith(Consts.DIRECTIVE_SCRIPT_LOAD, StringComparison.OrdinalIgnoreCase))
+            if (trimmedLine.StartsWith(Consts.DIRECTIVE_SCRIPT_LOAD, StringComparison.OrdinalIgnoreCase))
             {
                 return DirectiveType.ScriptRef;
             }
@@ -275,11 +293,7 @@
         /// </returns>
         public static string GetDirectiveReference(string trimmedLine, DirectiveType? directiveType)
         {
-            // #loadr "myclass.csx"
-            // #load "myscript.csx"
-            //#r "myassembly.dll"
-
-            string directiveText = null;
+            string directiveText = string.Empty;
             switch (directiveType)
             {
                 case DirectiveType.AssemblyRef:
@@ -287,9 +301,6 @@
                     break;
                 case DirectiveType.ScriptRef:
                     directiveText = Consts.DIRECTIVE_SCRIPT_LOAD;
-                    break;
-                case DirectiveType.LoadScriptAsAssemblyRef:
-                    directiveText = Consts.DIRECTIVE_LOAD_AS_ASSEMBLY;
                     break;
             }
 
@@ -300,39 +311,35 @@
         }
 
         /// <summary>
-        ///     Attempts to resolves the directive paths.
+        /// Attempts to resolves the directive paths.
         /// </summary>
+        /// <param name="baseFilePath">The base file path.</param>
         /// <param name="directives">The directives.</param>
         /// <returns></returns>
         public ImmutableList<ScriptDirective> ResolveDirectivePaths(string baseFilePath, List<ScriptDirective> directives)
         {
-            var scriptDirectory = Path.GetDirectoryName(baseFilePath);
+            //var scriptDirectory = Path.GetDirectoryName(baseFilePath);
 
             foreach (var ud in directives)
             {
-                if (ud.Type == DirectiveType.AssemblyRef || ud.Type == DirectiveType.ScriptRef)
+                if (ud.Type == DirectiveType.AssemblyRef)
                 {
-                    //the built in resolver takes care of these two. 
-                    // yet internal or sealed means we have to make all this other
-                    // code to add directives 
-                    ud.ResolvedValue = ud.UnresolvedValue;
-                    continue;
+                    continue; //the built in resolver takes care of this. 
                 }
-
-                if (ud.Type == DirectiveType.LoadScriptAsAssemblyRef)
+                if (ud.Type == DirectiveType.ScriptRef)
                 {
-                    var simpleResolution = AttemptSimplePathResolution(ud.UnresolvedValue, scriptDirectory);
-                    if (string.IsNullOrWhiteSpace(simpleResolution) == false)
+                    var resolutionCandidateFilePath = GetDirectiveReference(ud.OriginalReferencePath, DirectiveType.ScriptRef);
+                    var sc = GetResolutionTargetType(resolutionCandidateFilePath);
+                    if (sc != ResolutionTargetType.Cs)
                     {
-                        ud.ResolvedValue = simpleResolution;
                         continue;
                     }
-                    var pathResolver = new PathResolver(new ScriptSource(baseFilePath, ""));
-                    var pathResult = pathResolver.GetBestGuessForFilePath(ud.UnresolvedValue);
-                    if (pathResult.WasResolved)
-                    {
-                        ud.ResolvedValue = pathResult.ResolvedFile.FullName;
-                    }
+
+                    //send it for cleanup
+                    var resolvedPath = "";
+
+
+                    ud.SetRewrittenReferncePath(resolvedPath);
                 }
             }
 
@@ -369,6 +376,34 @@
         }
 
         #endregion //#region "muh stuff"
+
+        #region "equality members"
+
+        protected bool Equals(InterceptDirectiveResolver other)
+        {
+            return _rewrittenAssemblies.Equals(other._rewrittenAssemblies) && _sourceFileResolver.Equals(other._sourceFileResolver);
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != typeof(InterceptDirectiveResolver)) return false;
+            return Equals((InterceptDirectiveResolver)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = _rewrittenAssemblies.GetHashCode();
+                hashCode = (hashCode * 397) ^ _sourceFileResolver.GetHashCode();
+                return hashCode;
+            }
+        }
+        
+        #endregion #region "equality members"
+
 
     }
 

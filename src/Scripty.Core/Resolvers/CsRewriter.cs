@@ -154,6 +154,7 @@
             var namespaceMembersToCompile = new List<SyntaxTree>();
             var originalNamespaces = new List<string>();
             var explicitUsings = new List<UsingDirectiveSyntax>();
+            var referencedAssemblies = new List<Assembly>();
             explicitUsings.AddRange(mainCompilationUnit.Usings);
 
             var mcuNamespaces = mainCompilationUnit.Members.Where(m => m.IsKind(SyntaxKind.NamespaceDeclaration));
@@ -187,6 +188,8 @@
 
             var executingAssembly = Assembly.GetExecutingAssembly();
             var callingAssembly = Assembly.GetCallingAssembly();
+            referencedAssemblies.Add(executingAssembly);
+            referencedAssemblies.Add(callingAssembly);
 
             var listOfUsings = GetListOfNamespaces(originalNamespaces, explicitUsings, executingAssembly, callingAssembly);
             var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary).WithUsings(listOfUsings);
@@ -215,11 +218,12 @@
                     pdbStream.Seek(0, SeekOrigin.Begin);
                     rewriteCandidate.AssemblyBytes = dllStream.ToArray();
                     rewriteCandidate.PdbBytes = pdbStream.ToArray();
-
                     
                     rewriteCandidate.AssemblyFilePath = rewriteAssemblyPaths.DllPath;
                     rewriteCandidate.PdbFilePath = rewriteAssemblyPaths.PdbPath;
                     rewriteCandidate.CompilationResult = emitResult;
+                    rewriteCandidate.FoundNamespaces.AddRange(listOfUsings);
+                    rewriteCandidate.FoundAssemblies.AddRange(referencedAssemblies);
                 }
             }
             return rewriteCandidate;
@@ -343,25 +347,17 @@
         /// </summary>
         /// <param name="normalizedPath">The normalized path.</param>
         /// <returns></returns>
-        private static AsmDetails GetRewriteAssemblyPaths(string normalizedPath)
+        public static AsmDetail GetRewriteAssemblyPaths(string normalizedPath)
         {
             var name = $"{Path.GetRandomFileName()}.rewrite";
             var basePath = $"{normalizedPath}.{name}";
 
-            return new AsmDetails
+            return new AsmDetail
             {
                 AsmName = name,
                 DllPath = $"{basePath}.dll",
                 PdbPath = $"{basePath}.pdb"
             };
-        }
-
-
-        private class AsmDetails
-        {
-            public string DllPath { get; set; }
-            public string PdbPath { get; set; }
-            public string AsmName { get; set; }
         }
 
     }

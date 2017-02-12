@@ -6,13 +6,12 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Scripting;
-using Scripty.Core.Output;
 using Scripty.Core.ProjectTree;
 
 namespace Scripty.Core
 {
-    using System.Diagnostics;
-    using Microsoft.CodeAnalysis;
+    using System.Collections;
+    using System.Reflection;
     using Resolvers;
 
     public class ScriptEngine
@@ -53,29 +52,35 @@ namespace Scripty.Core
 
         public ProjectRoot ProjectRoot { get; }
 
-        public async Task<ScriptResult> Evaluate(ScriptSource source)
+        public async Task<ScriptResult> Evaluate(ScriptSource source, IEnumerable<Assembly> additionalAssemblies = null, IEnumerable<string> additionalNamespaces = null)
         {
+            var resolver = new InterceptDirectiveResolver();
+            var assembliesToRef = new List<Assembly>
+            {
+                typeof(object).Assembly, //mscorlib
+                typeof(Microsoft.CodeAnalysis.Project).Assembly, // Microsoft.CodeAnalysis.Workspaces
+                typeof(Microsoft.Build.Evaluation.Project).Assembly, // Microsoft.Build
+                typeof(ScriptEngine).Assembly // Scripty.Core
+            };
+            assembliesToRef.AddRange(additionalAssemblies ?? Enumerable.Empty<Assembly>());
+
+            var namepspaces = new List<string>
+            {
+                 "System",
+                "Scripty.Core",
+                "Scripty.Core.Output",
+                "Scripty.Core.ProjectTree"
+            };
+            namepspaces.AddRange(additionalNamespaces ?? Enumerable.Empty<string>());
+            
             ScriptOptions options = ScriptOptions.Default
                 .WithFilePath(source.FilePath)
-                .WithReferences(
-                    typeof(Microsoft.CodeAnalysis.Project).Assembly,  // Microsoft.CodeAnalysis.Workspaces
-                    typeof(Microsoft.Build.Evaluation.Project).Assembly,  // Microsoft.Build
-                    typeof(ScriptEngine).Assembly  // Scripty.Core
-                    )
-                .WithImports(
-                    "System",
-                    "Scripty.Core",
-                    "Scripty.Core.Output",
-                    "Scripty.Core.ProjectTree");
-
-            //TODO: Add resolver
-            //var resolver = new InterceptDirectiveResolver();
-            //options.WithSourceResolver(resolver)
-            
+                .WithReferences(assembliesToRef)
+                .WithImports(namepspaces)
+                .WithSourceResolver(resolver);
 
             var scriptResult = new ScriptResult();
             Exception caughtException = null;
-
 
             using (ScriptContext context = GetContext(source.FilePath))
             {

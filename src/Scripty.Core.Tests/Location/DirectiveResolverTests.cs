@@ -28,7 +28,7 @@
 
             var result = InterceptDirectiveResolver.ParseDirectives(scriptSource.FilePath);
             
-            Assert.IsNull(result);
+            Assert.IsNotNull(result);
         }
 
         private ProjectRoot BuildValidProjectRoot()

@@ -1,5 +1,7 @@
 ﻿namespace Scripty.Core.Resolvers
 {
+    using System.Collections.Generic;
+    using System.Reflection;
     using Microsoft.CodeAnalysis.Emit;
 
     /// <summary>
@@ -27,6 +29,16 @@
         ///     Gets or sets the PDB bytes.
         /// </summary>
         public byte[] PdbBytes { get; set; }
+
+        /// <summary>
+        ///     Any namepaces found during rewrite.
+        /// </summary>
+        public List<string> FoundNamespaces { get;  }  = new List<string>();
+
+        /// <summary>
+        ///     Any assemblies found during rewrite.
+        /// </summary>
+        public List<Assembly> FoundAssemblies { get;  } = new List<Assembly>();
 
         /// <summary>
         ///     Gets the is compiled.

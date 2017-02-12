@@ -1,18 +1,12 @@
 namespace Scripty.Core
 {
     using System;
-    using System.Collections.Generic;
     using System.IO;
-    using Resolvers;
 
     public class ScriptSource
     {
-        //TODO:This may require either a linked list or some other tree
-        // structure so that related scripts can all be better identified.
-
         public string FilePath { get; }
         public string Code { get; }
-        public List<ScriptDirective> Directives { get; private set; } = new List<ScriptDirective>();
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ScriptSource"/> class.
