@@ -4,13 +4,13 @@
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
-    using Core.Output;
+    using System.Reflection;
 
     public class TestHelpers
     {
         public const string TEST_FILE_CONTENT = "TESTCONTENT";
         public string ProjectFilePath { get; }
-        private string _TestFileSubfolder;
+        private readonly string _testFileSubfolder;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="TestHelpers"/> class.
@@ -19,7 +19,7 @@
         public TestHelpers(string testFileSubfolder = "")
         {
             ProjectFilePath = Path.Combine(GetProjectRootFolder(), "Scripty.Core.Tests.csproj");
-            _TestFileSubfolder = testFileSubfolder;
+            _testFileSubfolder = testFileSubfolder;
         }
 
         public ScriptEngine BuildScriptEngine()
@@ -28,6 +28,20 @@
             return se;
         }
 
+        public ScriptResult EvaluateScript(string scriptFilePath, List<Assembly> additionalAssemblies = null,
+            List<string> additionalNamespaces = null, ScriptEngine engine = null)
+        {
+            var eng = engine;
+            if (eng == null)
+            {
+                eng = BuildScriptEngine();
+            }
+            var ss = new ScriptSource(scriptFilePath, GetFileContent(scriptFilePath));
+            var result = eng.Evaluate(ss).Result; // additionalAssemblies, additionalNamespaces).Result;
+            return result;
+        }
+
+
         public static string GetProjectRootFolder()
         {
             return Path.GetFullPath($"{AppDomain.CurrentDomain.BaseDirectory}/../../");
@@ -35,7 +49,7 @@
 
         public string GetTestFileSubFolder()
         {
-            return Path.Combine(GetProjectRootFolder(), _TestFileSubfolder);
+            return Path.Combine(GetProjectRootFolder(), _testFileSubfolder);
         }
 
         public string GetTestFilePath(string fileName)
@@ -55,7 +69,6 @@
 
         public void RemoveFiles(List<string> filesToRemoveIfPresent)
         {
-
             if (filesToRemoveIfPresent != null)
             {
                 foreach (var file in filesToRemoveIfPresent)
@@ -68,7 +81,6 @@
                     }
                 }
             }
-
         }
 
 
@@ -84,7 +96,6 @@
                 {
                     Trace.TraceError($"Failed to delete file '{file}', err: {e}");
                 }
-                
             }
         }
 
@@ -99,7 +110,6 @@
                     File.WriteAllText(filePath, TEST_FILE_CONTENT);
                 }
             }
-
         }
 
         public string[] GetFileLines(string filePath)

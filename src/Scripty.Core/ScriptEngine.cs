@@ -1,17 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Scripting;
-using Microsoft.CodeAnalysis.Formatting;
-using Microsoft.CodeAnalysis.Scripting;
-using Scripty.Core.ProjectTree;
-
-namespace Scripty.Core
+﻿namespace Scripty.Core
 {
-    using System.Collections;
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
     using System.Reflection;
+    using System.Threading.Tasks;
+    using Microsoft.CodeAnalysis;
+    using Microsoft.CodeAnalysis.CSharp.Scripting;
+    using Microsoft.CodeAnalysis.Formatting;
+    using Microsoft.CodeAnalysis.Scripting;
+    using ProjectTree;
     using Resolvers;
 
     public class ScriptEngine
@@ -52,28 +51,28 @@ namespace Scripty.Core
 
         public ProjectRoot ProjectRoot { get; }
 
-        public async Task<ScriptResult> Evaluate(ScriptSource source, IEnumerable<Assembly> additionalAssemblies = null, IEnumerable<string> additionalNamespaces = null)
+        public async Task<ScriptResult> Evaluate(ScriptSource source)
         {
-            var resolver = new InterceptDirectiveResolver();
             var assembliesToRef = new List<Assembly>
             {
                 typeof(object).Assembly, //mscorlib
                 typeof(Microsoft.CodeAnalysis.Project).Assembly, // Microsoft.CodeAnalysis.Workspaces
                 typeof(Microsoft.Build.Evaluation.Project).Assembly, // Microsoft.Build
                 typeof(ScriptEngine).Assembly // Scripty.Core
+                
             };
-            assembliesToRef.AddRange(additionalAssemblies ?? Enumerable.Empty<Assembly>());
+
+            var resolver = new InterceptDirectiveResolver();
 
             var namepspaces = new List<string>
             {
-                 "System",
+                "System",
                 "Scripty.Core",
                 "Scripty.Core.Output",
                 "Scripty.Core.ProjectTree"
             };
-            namepspaces.AddRange(additionalNamespaces ?? Enumerable.Empty<string>());
-            
-            ScriptOptions options = ScriptOptions.Default
+
+            var options = ScriptOptions.Default
                 .WithFilePath(source.FilePath)
                 .WithReferences(assembliesToRef)
                 .WithImports(namepspaces)
@@ -82,9 +81,9 @@ namespace Scripty.Core
             var scriptResult = new ScriptResult();
             Exception caughtException = null;
 
-            using (ScriptContext context = GetContext(source.FilePath))
+            using (var context = GetContext(source.FilePath))
             {
-                bool writeAllOutputFiles = true;
+                var writeAllOutputFiles = true;
 
                 try
                 {
@@ -111,27 +110,27 @@ namespace Scripty.Core
 
                     scriptResult.OutputFiles = context.Output.OutputFileInfos;
                     scriptResult.Errors = aggregateException.InnerExceptions
-                            .Select(x => new ScriptError
-                            {
-                                Message = x.ToString()
-                            }).ToList();
+                        .Select(x => new ScriptError
+                        {
+                            Message = x.ToString()
+                        }).ToList();
                 }
                 catch (Exception ex)
                 {
                     caughtException = ex;
 
                     scriptResult.OutputFiles = context.Output.OutputFileInfos;
-                    scriptResult.Errors = new[] {
+                    scriptResult.Errors = new[]
+                    {
                         new ScriptError
                         {
-                                Message = ex.ToString()
-                            }
-                        };
+                            Message = ex.ToString()
+                        }
+                    };
                 }
 
                 switch (OutputBehavior)
                 {
-
                     case OutputBehavior.DontOverwriteIfEvaluationFails:
                         if (caughtException != null)
                         {
@@ -162,7 +161,6 @@ namespace Scripty.Core
         {
             foreach (var outputFile in context.Output.GetOutputFilesForWriting())
             {
-
                 if (File.Exists(outputFile.TargetFilePath))
                 {
                     File.Delete(outputFile.TargetFilePath);

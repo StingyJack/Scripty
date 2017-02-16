@@ -30,7 +30,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Microsoft.CodeAnalysis, Version=1.2.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+     <Reference Include="Microsoft.CodeAnalysis, Version=1.2.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.CodeAnalysis.Common.1.2.2\lib\net45\Microsoft.CodeAnalysis.dll</HintPath>
       <Private>True</Private>
     </Reference>
@@ -89,7 +89,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System.Core" />
-    <Reference Include="System.Diagnostics.StackTrace, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+   <Reference Include="System.Diagnostics.StackTrace, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Diagnostics.StackTrace.4.0.1\lib\net46\System.Diagnostics.StackTrace.dll</HintPath>
       <Private>True</Private>
     </Reference>
@@ -118,10 +118,9 @@
     </Compile>
     <Compile Include="BaseFixture.cs" />
     <Compile Include="Location\CsFileRewriterTests.cs" />
-    <Compile Include="Location\DirectiveResolverTests.cs" />
+    <Compile Include="Location\InterceptDirectiveResolverTests.cs" />
     <Compile Include="EngineParams.cs" />
     <Compile Include="EngineResults.cs" />
-    <None Include="Location\TestCs\ReferencedClass.ExpectedResult.cs" />
     <Compile Include="Output\EngineFixture.cs" />
     <Compile Include="Output\FormatterFixture.cs" />
     <Compile Include="Output\OutputFileCollectionFixture.cs" />

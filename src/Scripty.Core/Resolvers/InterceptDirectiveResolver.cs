@@ -3,9 +3,10 @@
     using System;
     using System.Collections.Generic;
     using System.Collections.Immutable;
-    using System.Diagnostics;
     using System.IO;
+    using System.Linq;
     using Microsoft.CodeAnalysis;
+    using Microsoft.CodeAnalysis.Text;
 
     /// <summary>
     ///     Intercepts #load directives that target .cs classes and provides the CSharpScript engine 
@@ -23,9 +24,10 @@
     {
 
         #region "fields"
-            
-        private readonly Dictionary<string, RewrittenAssembly> _rewrittenAssemblies = new Dictionary<string, RewrittenAssembly>(StringComparer.OrdinalIgnoreCase);
+
+        private readonly Dictionary<string, SourceText> _rewrittenSources = new Dictionary<string, SourceText>(StringComparer.OrdinalIgnoreCase);
         private readonly SourceFileResolver _sourceFileResolver;
+
 
         #endregion //#region "fields"
 
@@ -34,9 +36,9 @@
         /// <summary>
         ///     Initializes a new instance of the <see cref="InterceptDirectiveResolver"/> class.
         /// </summary>
-        public InterceptDirectiveResolver(): this(ImmutableArray<string>.Empty, AppContext.BaseDirectory)
+        public InterceptDirectiveResolver() : this(ImmutableArray<string>.Empty, AppContext.BaseDirectory)
         {
-            
+
         }
 
         /// <summary>
@@ -44,7 +46,7 @@
         /// </summary>
         /// <param name="searchPaths">The search paths.</param>
         /// <param name="baseDirectory">The base directory.</param>
-        public InterceptDirectiveResolver(ImmutableArray<string> searchPaths, string baseDirectory) 
+        public InterceptDirectiveResolver(ImmutableArray<string> searchPaths, string baseDirectory)
         {
             _sourceFileResolver = new SourceFileResolver(searchPaths, baseDirectory);
         }
@@ -54,22 +56,24 @@
 
         #region  "overrides"
 
-        
+
         /// <summary>
-        /// Normalizes specified source path with respect to base file path.
+        ///     Normalizes specified source path with respect to base file path.
+        /// 
+        ///     This is the first method that can be called for each reference
         /// </summary>
         /// <param name="path">The source path to normalize. May be absolute or relative.</param>
         /// <param name="baseFilePath">Path of the source file that contains the <paramref name="path"/> (may also be relative), or null if not available.</param>
         /// <returns>Normalized path, or null if <paramref name="path"/> can't be normalized. The resulting path doesn't need to exist.</returns>
         /// <remarks>
         ///     "Normalize" is a short word for what the underlying bits are doing here. MS should make the internal FileUtilities
-        /// public.
+        /// public - its vast and has a lot of useful things.
         /// </remarks>
         public override string NormalizePath(string path, string baseFilePath)
         {
             var candidateType = GetResolutionTargetType(path);
             var normalizedPath = _sourceFileResolver.NormalizePath(path, baseFilePath);
-
+            // return normalizedPath;
             if (candidateType != ResolutionTargetType.Cs)
             {
                 return normalizedPath;
@@ -79,9 +83,11 @@
 
             return csFilePath;
         }
-        
+
         /// <summary>
-        /// Resolves specified path with respect to base file path.
+        ///     Resolves specified path with respect to base file path.
+        ///     
+        ///     This is the second method called for each reference
         /// </summary>
         /// <param name="path">The path to resolve. May be absolute or relative.</param>
         /// <param name="baseFilePath">Path of the source file that contains the <paramref name="path" /> (may also be relative), or null if not available.</param>
@@ -100,7 +106,55 @@
         /// <returns></returns>
         public override Stream OpenRead(string resolvedPath)
         {
-            return _sourceFileResolver.OpenRead(resolvedPath);
+            var candidateType = GetResolutionTargetType(resolvedPath);
+            if (candidateType != ResolutionTargetType.Cs)
+            {
+                return _sourceFileResolver.OpenRead(resolvedPath);
+            }
+
+            if (_rewrittenSources.ContainsKey(resolvedPath))
+            {
+                return GetStream(_rewrittenSources[resolvedPath]);
+            }
+
+            var csExtract = CsRewriter.ExtractCompilationDetailFromClassFile(resolvedPath);
+            if (csExtract.Errors.Any())
+            {
+                var errString = string.Join(",", csExtract.Errors);
+                throw new InvalidOperationException($"Failed to get compilaitonTargets. {errString}");
+            }
+            var cs = csExtract.CompilationTargets.First();
+
+            //foreach (var mra in csExtract.MetadataReferenceAssemblies)
+            //{
+            //    _dirtyRefs.Add(Assembly.LoadFile(mra.Display));
+            //}
+
+            var sourceText = cs.GetText();
+            _rewrittenSources.Add(resolvedPath, sourceText);
+
+            var diagFile = CsRewriter.GetRewriteFilePath(resolvedPath);
+            WriteSourceText(sourceText, diagFile);
+
+            return GetStream(sourceText);
+        }
+
+        private void WriteSourceText(SourceText sourceText, string filePath)
+        {
+            var tw = new StreamWriter(filePath);
+            sourceText.Write(tw);
+            tw.Flush();
+            tw.Close();
+        }
+
+        private Stream GetStream(SourceText sourceText)
+        {
+            var ms = new MemoryStream();
+            var tw = new StreamWriter(ms);
+            sourceText.Write(tw);
+            tw.Flush();
+            ms.Seek(0, SeekOrigin.Begin);
+            return ms;
         }
 
         /*
@@ -144,7 +198,7 @@
             return false;
         }
         */
-        
+
         #endregion //#region  "overrides"
 
         #region "intercept handling"
@@ -154,25 +208,8 @@
             //this may need to get full absolute pathing 
             return referrersPath;
         }
-
-
-        private bool IsInterceptCandidate(string referrersPath)
-        {
-            var pathKey = GetReferrerPathKey(referrersPath);
-
-            if (_rewrittenAssemblies.ContainsKey(pathKey))
-            {
-                return true;
-            }
-
-            var candidateType = GetResolutionTargetType(referrersPath);
-            if (candidateType != ResolutionTargetType.Cs)
-            {
-                return true;
-            }
-            return false;
-        }
-
+        
+      
         private ResolutionTargetType GetResolutionTargetType(string resolutionCandidateFilePath)
         {
             if (resolutionCandidateFilePath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
@@ -185,40 +222,7 @@
             }
             return ResolutionTargetType.Other;
         }
-
-        /// <summary>
-        ///     Gets a rewritten assembly.
-        /// </summary>
-        /// <param name="referrersPath">The normalized referrers path.</param>
-        /// <returns></returns>
-        private RewrittenAssembly CreateRewrittenAssembly(string referrersPath)
-        {
-            try
-            {
-                var pathKey = GetReferrerPathKey(referrersPath);
-
-                if (_rewrittenAssemblies.ContainsKey(pathKey))
-                {
-                    return _rewrittenAssemblies[pathKey];
-                }
-
-                var rwa = CsRewriter.CreateRewriteFileAsAssembly(referrersPath);
-                if (rwa.IsCompiled)
-                {
-                    _rewrittenAssemblies.Add(pathKey, rwa);
-                }
-                else
-                {
-                    Trace.TraceError($"Failed to rewrite assembly: {rwa.CompilationResult}");
-                }
-            }
-            catch (Exception e)
-            {
-                Trace.TraceError($"Failed to get rewritten assembly {e}");
-            }
-
-            return null;
-        }
+        
 
         #endregion // #region "file handling"
 
@@ -346,42 +350,13 @@
             return directives.ToImmutableList();
         }
 
-        /// <summary>
-        ///     Attempts simple path resolution.
-        /// </summary>
-        /// <param name="unresolvedValue">The unresolved value.</param>
-        /// <param name="scriptDirectory">The script directory.</param>
-        /// <returns></returns>
-        private static string AttemptSimplePathResolution(string unresolvedValue, string scriptDirectory)
-        {
-
-            try
-            {
-                var fullPath = Path.Combine(scriptDirectory, unresolvedValue);
-                var resolvedPath = Path.GetFullPath(fullPath);
-                if (File.Exists(resolvedPath) == false)
-                {
-                    throw new FileNotFoundException($"#load directive points to invalid " +
-                                                    $"file name ({unresolvedValue}|{resolvedPath})."
-                        , unresolvedValue);
-                }
-
-                return resolvedPath;
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceError($"Failed to resolve path '{unresolvedValue}'. Ex: {ex}");
-            }
-            return null;
-        }
-
         #endregion //#region "muh stuff"
 
         #region "equality members"
 
         protected bool Equals(InterceptDirectiveResolver other)
         {
-            return _rewrittenAssemblies.Equals(other._rewrittenAssemblies) && _sourceFileResolver.Equals(other._sourceFileResolver);
+            return _rewrittenSources.Equals(other._rewrittenSources) && _sourceFileResolver.Equals(other._sourceFileResolver);
         }
 
         public override bool Equals(object obj)
@@ -396,12 +371,12 @@
         {
             unchecked
             {
-                var hashCode = _rewrittenAssemblies.GetHashCode();
+                var hashCode = _rewrittenSources.GetHashCode();
                 hashCode = (hashCode * 397) ^ _sourceFileResolver.GetHashCode();
                 return hashCode;
             }
         }
-        
+
         #endregion #region "equality members"
 
 
