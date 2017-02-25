@@ -20,7 +20,7 @@ namespace Scripty.Core.Output
 
         private OutputFile DefaultOutput => _defaultOutput ?? (_defaultOutput = this[FilePath]);
 
-        internal OutputFileCollection(string scriptFilePath)
+        public OutputFileCollection(string scriptFilePath)
         {
             if (string.IsNullOrEmpty(scriptFilePath))
             {

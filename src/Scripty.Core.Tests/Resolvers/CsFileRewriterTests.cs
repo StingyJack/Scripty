@@ -29,17 +29,18 @@
             CsTestHelpers.RemoveFiles("*.rewrite.*");
         }
 
+        /*
         //[Test]
         public void RewriteReferencedClassFileAsAssembly()
         {
-            var result = CsRewriter.CreateRewriteFileAsAssembly(_referencedClassFilePath);
+            var result = CsRewriter.CompileNonScriptAsScriptAssembly(_referencedClassFilePath);
 
             Assert.IsTrue(result.IsCompiled, "assembly was not compiled");
 
-            Assert.IsTrue(FileUtilities.WriteAssembly(result.AssemblyFilePath, result.AssemblyBytes),
+            Assert.IsTrue(FileUtilities.WriteFile(result.AssemblyFilePath, result.AssemblyBytes),
                 "Failed to write assembly to disk");
 
-            Assert.IsTrue(FileUtilities.WriteAssembly(result.PdbFilePath, result.PdbBytes),
+            Assert.IsTrue(FileUtilities.WriteFile(result.PdbFilePath, result.PdbBytes),
                 "Failed to write assembly pdb to disk");
 
             var asm = Assembly.LoadFile(result.AssemblyFilePath);
@@ -67,5 +68,6 @@
             StringAssert.StartsWith(expectedResult[2], actualResult[2]);
             StringAssert.AreNotEqualIgnoringCase(expectedResult[2], actualResult[2]);
         }
+        */
     }
 }

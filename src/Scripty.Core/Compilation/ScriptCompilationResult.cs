@@ -1,13 +1,14 @@
-﻿namespace Scripty.Core.Resolvers
+﻿namespace Scripty.Core.Compilation
 {
     using System.Collections.Generic;
-    using System.Reflection;
+    using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.Emit;
 
     /// <summary>
-    ///     A single code file that has had some content removed and then compiled 
+    ///     A compilation of a single script or a script and its referenced scripts, or class file that has 
+    /// had some non script compatible content removed and then compiled as script
     /// </summary>
-    public class RewrittenAssembly
+    public class ScriptCompilationResult
     {
         /// <summary>
         ///     Gets or sets the original file path.
@@ -38,16 +39,13 @@
         /// <summary>
         ///     Any assemblies found during rewrite.
         /// </summary>
-        public List<Assembly> FoundAssemblies { get;  } = new List<Assembly>();
+        public List<MetadataReference> FoundMetadataReferences { get;  } = new List<MetadataReference>();
 
         /// <summary>
         ///     Gets the is compiled.
         /// </summary>
-        public bool IsCompiled
-        {
-            get { return AssemblyBytes != null && AssemblyBytes.Length > 0; }
-        }
-
+        public bool IsCompiled { get; set; }
+        
         /// <summary>
         ///     Gets or sets the compilation result.
         /// </summary>

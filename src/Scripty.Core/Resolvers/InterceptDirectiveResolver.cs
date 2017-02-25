@@ -5,6 +5,7 @@
     using System.Collections.Immutable;
     using System.IO;
     using System.Linq;
+    using Compilation;
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.Text;
 
@@ -71,7 +72,7 @@
         /// </remarks>
         public override string NormalizePath(string path, string baseFilePath)
         {
-            var candidateType = GetResolutionTargetType(path);
+            var candidateType = CompilationHelpers.GetResolutionTargetType(path);
             var normalizedPath = _sourceFileResolver.NormalizePath(path, baseFilePath);
             // return normalizedPath;
             if (candidateType != ResolutionTargetType.Cs)
@@ -106,7 +107,7 @@
         /// <returns></returns>
         public override Stream OpenRead(string resolvedPath)
         {
-            var candidateType = GetResolutionTargetType(resolvedPath);
+            var candidateType = CompilationHelpers.GetResolutionTargetType(resolvedPath);
             if (candidateType != ResolutionTargetType.Cs)
             {
                 return _sourceFileResolver.OpenRead(resolvedPath);
@@ -123,14 +124,10 @@
                 var errString = string.Join(",", csExtract.Errors);
                 throw new InvalidOperationException($"Failed to get compilaitonTargets. {errString}");
             }
+
             var cs = csExtract.CompilationTargets.First();
 
-            //foreach (var mra in csExtract.MetadataReferenceAssemblies)
-            //{
-            //    _dirtyRefs.Add(Assembly.LoadFile(mra.Display));
-            //}
-
-            var sourceText = cs.GetText();
+        var sourceText = cs.GetText();
             _rewrittenSources.Add(resolvedPath, sourceText);
 
             var diagFile = CsRewriter.GetRewriteFilePath(resolvedPath);
@@ -201,23 +198,7 @@
 
         #endregion //#region  "overrides"
 
-        #region "intercept handling"
-            
-        private ResolutionTargetType GetResolutionTargetType(string resolutionCandidateFilePath)
-        {
-            if (resolutionCandidateFilePath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
-            {
-                return ResolutionTargetType.Cs;
-            }
-            if (resolutionCandidateFilePath.EndsWith(".csx", StringComparison.OrdinalIgnoreCase))
-            {
-                return ResolutionTargetType.Csx;
-            }
-            return ResolutionTargetType.Other;
-        }
-        
-
-        #endregion // #region "file handling"
+     
 
         #region "muh stuff"
 
@@ -331,7 +312,7 @@
                 if (ud.Type == DirectiveType.ScriptRef)
                 {
                     var resolutionCandidateFilePath = GetDirectiveReference(ud.OriginalReferencePath, DirectiveType.ScriptRef);
-                    var sc = GetResolutionTargetType(resolutionCandidateFilePath);
+                    var sc = CompilationHelpers.GetResolutionTargetType(resolutionCandidateFilePath);
                     if (sc != ResolutionTargetType.Cs)
                     {
                         continue;

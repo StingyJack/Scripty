@@ -36,10 +36,9 @@
             _scriptWithScriptRef_ButNoAsmOrClassRef = CsxTestHelpers.GetTestFilePath("WithScriptRef_ButNoAsmOrClassRef.csx");
             _scriptWithClassRef_ButNoAsmmOrScriptRef = CsxTestHelpers.GetTestFilePath("WithClassRef_ButNoAsmOrScriptRef.csx");
             _scriptWithAsmAndClassAndScriptRef = CsxTestHelpers.GetTestFilePath("WithAsmAndClassAndScriptRef.csx");
-            _referencedClassFilePath = CsTestHelpers.GetTestFilePath("ReferencedClass.csx");
+            _referencedClassFilePath = CsTestHelpers.GetTestFilePath("ReferencedClass.cs");
 
-            CsTestHelpers.RemoveFiles($"*.{CsRewriter.DEFAULT_REWRITE_TEMP_EXTENSION}");
-            CsTestHelpers.RemoveFiles($"*.{CsRewriter.DEFAULT_REWRITE_EXTENSION}");
+            CsTestHelpers.RemoveFiles($"*.{CsRewriter.DEFAULT_REWRITE_EXTENSION}.*");
         }
 
         [OneTimeTearDown]
@@ -147,7 +146,7 @@
         public void EvaluateScript_WithAsmAndClassAndScriptRef()
         {
             var result = CsxTestHelpers.EvaluateScript(_scriptWithAsmAndClassAndScriptRef);
-
+            
             AssertThereAreNoErrors(result);
             var actualResult = CsxTestHelpers.GetFileLines(result.OutputFiles.Single().FilePath);
             Assert.AreEqual(5, actualResult.Length);
@@ -159,18 +158,18 @@
         }
 
 
-
+        /*
         //for reference
         public void RewriteReferencedClassFileAsAssembly()
         {
-            var result = CsRewriter.CreateRewriteFileAsAssembly(_referencedClassFilePath);
+            var result = CsRewriter.CompileNonScriptAsScriptAssembly(_referencedClassFilePath);
 
             Assert.IsTrue(result.IsCompiled, "assembly was not compiled");
 
-            Assert.IsTrue(FileUtilities.WriteAssembly(result.AssemblyFilePath, result.AssemblyBytes),
+            Assert.IsTrue(FileUtilities.WriteFile(result.AssemblyFilePath, result.AssemblyBytes),
                 "Failed to write assembly to disk");
 
-            Assert.IsTrue(FileUtilities.WriteAssembly(result.PdbFilePath, result.PdbBytes),
+            Assert.IsTrue(FileUtilities.WriteFile(result.PdbFilePath, result.PdbBytes),
                 "Failed to write assembly pdb to disk");
 
             var asm = Assembly.LoadFile(result.AssemblyFilePath);
@@ -198,6 +197,7 @@
             StringAssert.StartsWith(expectedResult[2], actualResult[2]);
             StringAssert.AreNotEqualIgnoringCase(expectedResult[2], actualResult[2]);
         }
+        */
 
         [Test]
         public void ParseDirectives()

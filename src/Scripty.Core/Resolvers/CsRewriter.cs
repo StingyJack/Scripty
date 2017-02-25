@@ -7,6 +7,7 @@
     using System.Linq;
     using System.Reflection;
     using System.Text;
+    using Compilation;
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.CSharp.Scripting;
@@ -18,13 +19,21 @@
     /// </summary>
     public class CsRewriter
     {
-        public const string DEFAULT_REWRITE_TEMP_EXTENSION = ".rewrite.tmp";
-        public const string DEFAULT_REWRITE_EXTENSION = ".rewrite";
-        public const string DEFAULT_DLL_EXTENSION = ".dll";
-        public const string DEFAULT_PDB_EXTENSION = ".pdb";
+        public const string DEFAULT_REWRITE_TEMP_EXTENSION = "rewrite.tmp";
+        public const string DEFAULT_REWRITE_EXTENSION = "rewrite";
+        public const string DEFAULT_DLL_EXTENSION = "dll";
+        public const string DEFAULT_PDB_EXTENSION = "pdb";
 
 
-        private static readonly CSharpParseOptions _defaultParseOptions = CSharpParseOptions.Default.WithKind(SourceCodeKind.Script);
+        public static CSharpParseOptions DefaultScriptParseOptions
+        {
+            get { return CSharpParseOptions.Default.WithKind(SourceCodeKind.Script); }
+        }
+
+        public static CSharpParseOptions DefaultParseOptions
+        {
+            get { return CSharpParseOptions.Default; }
+        }
 
         /// <summary>
         ///     Creates a copy of the original file, without the things the <see cref="CSharpScript"/> resolver
@@ -40,7 +49,7 @@
         [Obsolete("Remove this or hide it")]
         public static RewrittenFile CreateRewriteFile(RewrittenFile rewriteCandidate)
         {
-            FileUtilities.RemoveIfPresent(rewriteCandidate.RewrittenFilePath);
+            FileUtilities.RemoveIfPresentSoft(rewriteCandidate.RewrittenFilePath);
 
             var targetFileStream = new StreamWriter(rewriteCandidate.RewrittenFilePath);
 
@@ -140,6 +149,8 @@
             return rewriteCandidate;
         }
 
+        /*
+
         /// <summary>
         ///     Extracts the class declarations from the namespaces in the original file and compiles the result.
         /// </summary>
@@ -148,9 +159,10 @@
         ///     The compiled result and pdb bytes, along with the suggested file names, but
         /// does not save the file to disk.
         /// </returns>
-        public static RewrittenAssembly CreateRewriteFileAsAssembly(string rewriteCandidateFilePath)
+        
+        public static ScriptCompilation CompileNonScriptAsScriptAssembly(string rewriteCandidateFilePath)
         {
-            var rewriteCandidate = new RewrittenAssembly { OriginalFilePath = rewriteCandidateFilePath };
+            var rewriteCandidate = new ScriptCompilation {OriginalFilePath = rewriteCandidateFilePath};
 
             var csExtraction = ExtractCompilationDetailFromClassFile(rewriteCandidateFilePath);
             if (csExtraction.Errors.IsEmpty == false)
@@ -200,11 +212,12 @@
             }
             return rewriteCandidate;
         }
+        */
 
         public static CsExtraction ExtractCompilationDetailFromClassFile(string rewriteCandidateFilePath)
         {
-            var scriptCode = FileUtilities.GetFileContent(rewriteCandidateFilePath);
-            var mainCompilationUnit = GetRootMainCompilationUnit(scriptCode);
+            var scriptCode = FileUtilities.GetFileContentSoft(rewriteCandidateFilePath);
+            var mainCompilationUnit = CompilationHelpers.GetRootMainCompilationUnit(scriptCode);
             if (mainCompilationUnit == null)
             {
                 return new CsExtraction(new List<string> { "Could not get main compilation unit" }, rewriteCandidateFilePath);
@@ -234,7 +247,7 @@
 
                 foreach (var member in namespaceDeclarationSyntax.Members)
                 {
-                    var msyntaxTree = CSharpSyntaxTree.ParseText(member.GetText(), _defaultParseOptions);
+                    var msyntaxTree = CSharpSyntaxTree.ParseText(member.GetText(), DefaultScriptParseOptions);
                     var memberRoot = msyntaxTree.GetRoot();
                     var insideTheNamespaceMember = memberRoot as CompilationUnitSyntax;
                     if (insideTheNamespaceMember == null)
@@ -260,7 +273,7 @@
                             //ccu.AddUsings(u); // that doesn't work
                             //ccu.AddUsings(SyntaxFactory.UsingDirective(u.Name)); // not this either
                             //ccu.WithUsings(new SyntaxList<UsingDirectiveSyntax> {u}); // R# hints this may be a problem
-                            
+
                             // why did MS put Add() and With() members on an object that is immutable (though not named as such)?
                             // and why dont we get a decent runtime error instead of a HINT from resharper
 
@@ -269,8 +282,8 @@
                             // is the same as "This with That" - you still end up with both.
                             ccu = ccu.AddUsings(SyntaxFactory.UsingDirective(u.Name).NormalizeWhitespace());
                         }
-                        
-                        var classDeclSyntaxTree = CSharpSyntaxTree.Create(ccu, _defaultParseOptions);
+
+                        var classDeclSyntaxTree = CSharpSyntaxTree.Create(ccu, DefaultScriptParseOptions);
                         namespaceMembersToCompile.Add(classDeclSyntaxTree);
                     }
                 }
@@ -278,33 +291,8 @@
 
             var references = metadataReferences as MetadataReference[] ?? metadataReferences.ToArray();
             var allNamespaces = GetListOfNamespaces(allUsingsAcrossCompilationUnit.Select(u => u.Name.ToString()), metadataReferences: references);
-            
+
             return new CsExtraction(references, namespaceMembersToCompile, allNamespaces, rewriteCandidateFilePath);
-        }
-
-        /// <summary>
-        ///     Gets the main compilation unit for the root of the syntax tree. This should effectively be the namespace 'container'
-        /// </summary>
-        /// <param name="scriptCode">The script code.</param>
-        /// <returns>
-        ///     null if unable to get the requested item
-        /// </returns>
-        private static CompilationUnitSyntax GetRootMainCompilationUnit(string scriptCode)
-        {
-            var mainSyntaxTree = CSharpSyntaxTree.ParseText(scriptCode, _defaultParseOptions);
-
-            SyntaxNode mainSyntaxTreeRoot;
-            if (mainSyntaxTree.TryGetRoot(out mainSyntaxTreeRoot) == false)
-            {
-                return null;
-            }
-
-            var mainCompilationUnit = mainSyntaxTreeRoot as CompilationUnitSyntax;
-            if (mainCompilationUnit == null)
-            {
-                return null;
-            }
-            return mainCompilationUnit;
         }
 
         private static IEnumerable<MetadataReference> GetMetadataReferenceAssemblies(string codeAsScript)
@@ -339,7 +327,7 @@
             {
                 listOfUsings.AddRange(namespacesToUseVerbatim.Distinct());
             }
-            
+
             var asmList = new List<Assembly>();
 
             if (metadataReferences != null)
@@ -354,11 +342,12 @@
             {
                 asmList.AddRange(assemblies);
             }
-            
+
             foreach (var asm in asmList)
             {
                 var asmNs = asm.GetTypes()
-                    .Where(t => string.IsNullOrWhiteSpace(t.Namespace) == false)
+                    .Where(t => string.IsNullOrWhiteSpace(t.Namespace) == false
+                                && t.IsPublic == true)
                     .Select(t => t.Namespace).Distinct();
 
                 foreach (var eans in asmNs)
@@ -385,7 +374,10 @@
         /// Given the line "namespace Company.Product.Application.Module"
         /// This returns "using Company;using Company.Product;.using Company.Product.Application;using Company.Product.Application.Module;"
         /// </example>
-        private static List<string> BuildStackedNamespacePaths(string trimStartNamespace)
+        /// <remarks>
+        ///     This may be needed when extracting class information. 
+        /// </remarks>
+        public static List<string> BuildStackedNamespacePaths(string trimStartNamespace)
         {
             var namespaceValue = trimStartNamespace.Replace("namespace", string.Empty).Trim();
             var endRemoved = namespaceValue.Split(' ');
@@ -409,7 +401,7 @@
         /// <returns></returns>
         public static string GetRewriteFilePath(string normalizedPath)
         {
-            return $"{normalizedPath}.{Path.GetRandomFileName()}{DEFAULT_REWRITE_TEMP_EXTENSION}";
+            return $"{normalizedPath}.{Path.GetRandomFileName()}.{DEFAULT_REWRITE_TEMP_EXTENSION}";
         }
 
         /// <summary>
@@ -426,7 +418,7 @@
             {
                 AsmName = name,
                 DllPath = $"{basePath}.{DEFAULT_DLL_EXTENSION}",
-                PdbPath = $"{basePath}{DEFAULT_PDB_EXTENSION}"
+                PdbPath = $"{basePath}.{DEFAULT_PDB_EXTENSION}"
             };
         }
 

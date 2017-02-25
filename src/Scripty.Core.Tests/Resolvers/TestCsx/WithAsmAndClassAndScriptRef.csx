@@ -4,7 +4,7 @@
 
 //Write using supplied ScriptContext
 Output.WriteLine("namespace TestNamespace{class TestClass{public void TestMethod(){}}}");
-
+//System.Diagnostics.Debugger.Launch();
 //with the referenced assembly
 var bag = new NUnit.Framework.Internal.PropertyBag();
 Output.WriteLine($"// {bag}");

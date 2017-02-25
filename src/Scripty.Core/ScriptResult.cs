@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
-using Scripty.Core.Output;
-
 namespace Scripty.Core
 {
+    using System;
+    using System.Collections.Generic;
+    using Output;
+
     public class ScriptResult
     {
         public ICollection<IOutputFileInfo> OutputFiles { get; }
@@ -14,10 +14,19 @@ namespace Scripty.Core
         {
         }
 
-        internal ScriptResult(ICollection<IOutputFileInfo> outputFiles, ICollection<ScriptError> errors)
+        protected internal ScriptResult(ICollection<IOutputFileInfo> outputFiles, ICollection<ScriptError> errors)
         {
             OutputFiles = outputFiles;
             Errors = errors;
+        }
+
+
+        internal void AddErrors(ICollection<ScriptError> errors)
+        {
+            foreach (var error in errors)
+            {
+                Errors.Add(error);
+            }
         }
     }
 }

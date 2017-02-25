@@ -6,12 +6,15 @@ using Microsoft.CodeAnalysis.Options;
 
 namespace Scripty.Core.Output
 {
+    using System.Diagnostics;
+
     internal class OutputFileWriter : OutputFile
     {
         private readonly TextWriter _textWriter;
         private int _indentLevel = 0;
         private bool _indentNextWrite = false;  // Only indent the first write after a WriteLine() call
         private BuildAction _buildAction;
+        private bool _isClosed;
 
         internal OutputFileWriter(string filePath)
         {
@@ -206,7 +209,31 @@ namespace Scripty.Core.Output
             set { _textWriter.NewLine = value; }
         }
 
-        public override void Close() => _textWriter.Close();
+        /// <summary>
+        ///     True if the underlying stream is closed for writing
+        /// </summary>
+        public bool IsClosed
+        {
+            get { return _isClosed; }
+        }
+
+        public override void Close()
+        {
+            if (_isClosed == true)
+            {
+                return;
+            }
+
+            try
+            {
+                _isClosed = true;
+                _textWriter.Close();
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceError($"Failed to close output file '{this.FilePath}'. ex: {ex}" );
+            }
+        }
 
         public override void Flush() => _textWriter.Flush();
     }

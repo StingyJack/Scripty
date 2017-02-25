@@ -1,11 +1,12 @@
-﻿namespace Scripty.Core.Tests
+﻿namespace Scripty.CustomTool.Tests
 {
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
     using System.Reflection;
-    
+    using Core;
+    using CustomTool;
 
     public class TestHelpers
     {
@@ -19,7 +20,7 @@
         /// <param name="testFileSubfolder">The test file subfolder relative to the project root.</param>
         public TestHelpers(string testFileSubfolder = "")
         {
-            ProjectFilePath = Path.Combine(GetProjectRootFolder(), "Scripty.Core.Tests.csproj");
+            ProjectFilePath = Path.Combine(GetProjectRootFolder(), "Scripty.CustomTool.Tests.csproj");
             _testFileSubfolder = testFileSubfolder;
         }
 
@@ -28,7 +29,13 @@
             var se = new ScriptEngine(ProjectFilePath);
             return se;
         }
-        
+
+        public DebugEngine BuildDebugEngine()
+        {
+            var de = new DebugEngine(ProjectFilePath);
+            return de;
+        }
+
         public ScriptResult EvaluateScript(string scriptFilePath, List<Assembly> additionalAssemblies = null,
             List<string> additionalNamespaces = null, ScriptEngine engine = null)
         {

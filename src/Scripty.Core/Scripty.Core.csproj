@@ -33,6 +33,9 @@
     <DocumentationFile>bin\Release\Scripty.Core.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="EnvDTE, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </Reference>
     <Reference Include="Microsoft.Build, Version=14.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Build.14.3.0\lib\net45\Microsoft.Build.dll</HintPath>
       <Private>True</Private>
@@ -181,11 +184,16 @@
     <Compile Include="..\SolutionInfo.cs">
       <Link>Properties\SolutionInfo.cs</Link>
     </Compile>
+    <Compile Include="Compilation\CommonCompilationDetail.cs" />
+    <Compile Include="Compilation\PreparedCompilation.cs" />
+    <Compile Include="Compilation\Enumstensions.cs" />
+    <Compile Include="Compilation\SyntaxBuilder.cs" />
     <Compile Include="Consts.cs" />
+    <Compile Include="Compilation\CompilationHelpers.cs" />
     <Compile Include="Resolvers\AsmDetail.cs" />
     <Compile Include="Resolvers\CsExtraction.cs" />
     <Compile Include="Resolvers\CsRewriter.cs" />
-    <Compile Include="Resolvers\FileUtilities.cs" />
+    <Compile Include="FileUtilities.cs" />
     <Compile Include="Resolvers\InterceptDirectiveResolver.cs" />
     <Compile Include="Resolvers\Enums.cs" />
     <Compile Include="Output\BuildAction.cs" />
@@ -198,7 +206,7 @@
     <Compile Include="Output\OutputFileWriter.cs" />
     <Compile Include="ProjectTree\ProjectNode.cs" />
     <Compile Include="ProjectTree\ProjectRoot.cs" />
-    <Compile Include="Resolvers\RewrittenAssembly.cs" />
+    <Compile Include="Compilation\ScriptCompilationResult.cs" />
     <Compile Include="Resolvers\RewrittenFile.cs" />
     <Compile Include="Resolvers\ScriptDirective.cs" />
     <Compile Include="ScriptError.cs" />
