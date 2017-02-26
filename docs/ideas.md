@@ -8,3 +8,5 @@ Add context action for Debug Scripty and Run Scripty
 Why is this custom tool so weird compared to templates?
 
 2017?
+
+Disabled interop embedding on the envdte references

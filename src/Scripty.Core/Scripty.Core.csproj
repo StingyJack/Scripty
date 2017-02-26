@@ -186,6 +186,7 @@
     <Compile Include="Compilation\PreparedCompilation.cs" />
     <Compile Include="Compilation\Enumstensions.cs" />
     <Compile Include="Compilation\SyntaxBuilder.cs" />
+    <Compile Include="Compilation\SyntaxExtensions.cs" />
     <Compile Include="Consts.cs" />
     <Compile Include="Compilation\CompilationHelpers.cs" />
     <Compile Include="Resolvers\AsmDetail.cs" />

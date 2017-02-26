@@ -24,6 +24,9 @@
             Assert.IsNotNull(result);
             var errs = string.Join(string.Empty, result.Errors.Select(e => $"{e} {Environment.NewLine}"));
             Assert.AreEqual(0, result.Errors.Count, $"errors {errs}");
+
+
+            Assert.IsTrue(false, "Test completed without errors. Doesnt mean it works tho");
         }
 
         public override void OnOneTimeSetup()

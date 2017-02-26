@@ -1,7 +1,7 @@
 ﻿namespace Scripty.Core.Compilation
 {
+    using System;
     using System.Collections.Generic;
-    using System.Linq;
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -10,7 +10,7 @@
     /// <summary>
     ///     Builds commonly used syntax elements
     /// </summary>
-    public static class SyntaxBuilder
+    public class SyntaxBuilder
     {
         #region "namespace"
 
@@ -27,7 +27,7 @@
                     SyntaxFactory.NamespaceDeclaration(SyntaxFactory.IdentifierName(namespaceName)
                             .WithLeadingTrivia(SyntaxFactory.Space)
                             .WithTrailingTrivia(SyntaxFactory.Space, SyntaxFactory.CarriageReturnLineFeed))
-                            .AddUsings(usings.ToArray())
+                        .AddUsings(usings.ToArray())
                         .AddMembers(members));
         }
 
@@ -39,7 +39,7 @@
             MemberDeclarationSyntax[] methods)
         {
             return SyntaxFactory.ClassDeclaration(className)
-                .WithModifiers(ModifiersPublicStatic())
+                .AsPublic()
                 .WithLeadingTrivia(SyntaxFactory.CarriageReturnLineFeed, SyntaxFactory.Space)
                 .WithTrailingTrivia(SyntaxFactory.Space, SyntaxFactory.CarriageReturnLineFeed)
                 .AddMembers(fieldMembers)
@@ -55,23 +55,19 @@
         public static MethodDeclarationSyntax Method(string methodName, StatementSyntax statements, TypeSyntax returnType = null)
         {
             var identifier = BuildMethodIdentifier(methodName);
-            var returnSyntax = returnType ?? ReturnVoid();
+            var returnSyntax = returnType ?? ReturnVoid;
             var voidMain = SyntaxFactory.MethodDeclaration(returnSyntax, identifier)
                 .WithBody(SyntaxFactory.Block(statements))
                 .WithLeadingTrivia(SyntaxFactory.Space)
-                .WithTrailingTrivia(SyntaxFactory.Space, SyntaxFactory.CarriageReturnLineFeed);
+                .WithTrailingTrivia(SyntaxFactory.Space, SyntaxFactory.CarriageReturnLineFeed)
+                .AsPublic();
+
             return voidMain;
         }
 
-        public static PredefinedTypeSyntax ReturnVoid()
+        public static PredefinedTypeSyntax ReturnVoid
         {
-            var returnType = SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword));
-            return returnType;
-        }
-
-        public static MethodDeclarationSyntax AsReturnVoid(this MethodDeclarationSyntax methodDeclarationSyntax)
-        {
-            return methodDeclarationSyntax.WithReturnType(ReturnVoid());
+            get { return SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)); }
         }
 
         public static SyntaxToken BuildMethodIdentifier(string methodName)
@@ -83,29 +79,44 @@
 
         #endregion //#region "method related"
 
-        #region "common"
+        #region "member related"
 
-        public static SyntaxTokenList ModifiersPublicStatic()
+        public static SyntaxTokenList ModifierPublic
         {
-            var modifiers = SyntaxTokenList.Create(SyntaxFactory.Token(SyntaxKind.PublicKeyword)
-                .WithTrailingTrivia(SyntaxFactory.Space));
-            modifiers = modifiers.Add(SyntaxFactory.Token(SyntaxKind.StaticKeyword)
-                .WithTrailingTrivia(SyntaxFactory.Space));
-            return modifiers;
+            get
+            {
+                return SyntaxTokenList.Create(SyntaxFactory.Token(SyntaxKind.PublicKeyword)
+                    .WithTrailingTrivia(SyntaxFactory.Space));
+            }
         }
 
-        public static MethodDeclarationSyntax AsPublicStatic(this MethodDeclarationSyntax methodDeclarationSyntax)
+        public static SyntaxTokenList ModifierStatic
         {
-            return methodDeclarationSyntax.WithModifiers(ModifiersPublicStatic());
+            get
+            {
+                return SyntaxTokenList.Create(SyntaxFactory.Token(SyntaxKind.StaticKeyword)
+                    .WithTrailingTrivia(SyntaxFactory.Space));
+            }
         }
 
-        #endregion //#region "common"
+        public static AttributeListSyntax AttributeSerializable
+        {
+            get
+            {
+                var list = new SeparatedSyntaxList<AttributeSyntax>();
+                list = list.Add(SyntaxFactory.Attribute(SyntaxFactory.IdentifierName(typeof(SerializableAttribute).Name)));
+                var attrs = SyntaxFactory.AttributeList(list);
+                return attrs;
+            }
+        }
+
+        #endregion //#region "member related"
 
         #region "field"
 
         public static FieldDeclarationSyntax BuildOutputFileCollectionField(string scriptFilePath)
         {
-            var outputFieldType = typeof(OutputFileCollection).FullName;
+            var outputFieldType = typeof(OutputFileCollection).Name;
             var argList = SyntaxFactory.ArgumentList()
                 .AddArguments(
                     SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(scriptFilePath))));
@@ -116,7 +127,7 @@
                                 SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName(outputFieldType))
                                     .WithArgumentList(argList)
                                     .WithNewKeyword(SyntaxFactory.Token(SyntaxKind.NewKeyword)))))))
-                .WithModifiers(ModifiersPublicStatic());
+                .AsPublic();
             return outputField;
         }
 

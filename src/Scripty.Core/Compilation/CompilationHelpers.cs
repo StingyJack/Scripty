@@ -108,32 +108,31 @@
 
             return BuildScriptCompilationResult(detailsToUseForTarget, emitResult, compilationPrep);
         }
-        
+
         #endregion //#region "compilation"
 
         #region  "builders"
 
-        public static CompilationUnitSyntax WrapScriptInStandardClass(CompilationUnitSyntax strippedScript,
-            string namespaceName, string className, string methodName, string scriptFilePath)
+        public static CompilationUnitSyntax WrapScriptInStandardClass(CompilationUnitSyntax strippedScript, 
+            string namespaceName, string className, string methodName, string scriptFilePath, List<string> usings)
         {
             var scriptStatements = SyntaxFactory.ParseStatement(strippedScript.GetText().ToString());
-
-            var voidMain = SyntaxBuilder.Method(methodName, scriptStatements).AsPublicStatic();
+            var voidMain = SyntaxBuilder.Method("Main", SyntaxFactory.EmptyStatement()).AsPublic().AsStatic().AsReturnVoid();
+            var scriptMethod = SyntaxBuilder.Method(methodName, scriptStatements);
             var outputField = SyntaxBuilder.BuildOutputFileCollectionField(scriptFilePath);
             var wrappingClass = SyntaxBuilder.ClassWrapper(className,
-                new MemberDeclarationSyntax[] {}, new MemberDeclarationSyntax[] {voidMain});
-                //new MemberDeclarationSyntax[] {outputField }, new MemberDeclarationSyntax[] { voidMain });
+                new MemberDeclarationSyntax[] {outputField}, new MemberDeclarationSyntax[] {voidMain, scriptMethod})
+                .AsSeriallzable();
+            
 
-            var usings = new List<string>();
-            usings.Add("Scripty.Core");
-            usings.Add("Scripty.Core.Output");
+            
 
             var wrappingNamespace = SyntaxBuilder.NamespaceWrapper(namespaceName, usings,
-                new MemberDeclarationSyntax[] {wrappingClass});
+                new MemberDeclarationSyntax[] { wrappingClass });
 
             return wrappingNamespace;
         }
-        
+
         private static ScriptCompilationResult BuildScriptCompilationResult(AsmDetail detailsToUseForTarget, EmitResult emitResult,
             PreparedCompilation compilationPrep)
         {
@@ -168,7 +167,7 @@
             var metadataReferences = new List<MetadataReference>();
             var executingAssembly = Assembly.GetExecutingAssembly();
             var callingAssembly = Assembly.GetCallingAssembly();
-            
+
             metadataReferences.Add(MetadataReference.CreateFromFile(executingAssembly.Location));
             metadataReferences.Add(MetadataReference.CreateFromFile(callingAssembly.Location));
 
@@ -202,8 +201,8 @@
                 .WithAssemblyIdentityComparer(DesktopAssemblyIdentityComparer.Default);
 
             var compilation = CSharpCompilation.Create(detailsToUseForTarget.AsmName,
-                compilationSources.ToArray(), commonDetails.MetadataReferences, options);
-            
+                compilationSources.ToArray(), commonDetails.MetadataReferences);
+
             return new PreparedCompilation
             {
                 Options = options,
@@ -212,13 +211,13 @@
                 Usings = commonDetails.ListOfUsings
             };
         }
-        
+
 
         private static PreparedCompilation PrepareScriptCompilation(SyntaxTree compilationSource, AsmDetail detailsToUseForTarget,
             IEnumerable<string> additionalUsings = null, IEnumerable<MetadataReference> additionalReferences = null)
         {
             var commonDetails = BuildCommonCompilationDetails(additionalUsings, additionalReferences);
-            
+
             var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
                 .WithUsings(commonDetails.ListOfUsings);
 
@@ -227,7 +226,7 @@
                 .AddReferences(commonDetails.MetadataReferences)
                 .WithOptions(options)
                 .AddSyntaxTrees(compilationSource);
-                
+
 
             return new PreparedCompilation
             {
@@ -321,7 +320,7 @@
             }
             return new Tuple<CompilationUnitSyntax, List<Assembly>>(compilationUnit, assms);
         }
-        
+
         public static List<Assembly> GetReferencedAssemblies(Assembly targetAssembly)
         {
             var result = new List<Assembly>();

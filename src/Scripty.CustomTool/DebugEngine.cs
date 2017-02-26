@@ -90,7 +90,7 @@ namespace Scripty.CustomTool
 
             swStep.Restart();
             var wholeUnit = CompilationHelpers.WrapScriptInStandardClass(executingScriptCompilationSource, 
-                DEBUG_NAMESPACE_NAME, DEBUG_CLASS_NAME, DEBUG_METHOD_NAME, source.FilePath);
+                DEBUG_NAMESPACE_NAME, DEBUG_CLASS_NAME, DEBUG_METHOD_NAME, source.FilePath, namespaces).NormalizeWhitespace();
             Wt($"Script wrapping took {swStep.ElapsedMilliseconds}ms");
 
             swStep.Restart();
@@ -98,10 +98,7 @@ namespace Scripty.CustomTool
             Wt($"Script formatting took {swStep.ElapsedMilliseconds}ms");
             WriteBlockToTrace(formatted);
             compilationSources.Add(formatted.SyntaxTree);
-
-            //errors(4, 22 - The type or namespace name 'Scripty.Core.Output.OutputFileCollection' could not be 
-            //found(are you missing a using directive or an assembly reference?) \r\n(4,76 - The type or namespace name 'Scripty.Core.Output.OutputFileCollection' could not be found(are you missing a using directive or an assembly reference?) \r\n
-
+            
             swStep.Restart();
             var context = GetContext(source.FilePath);
             var outputDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -120,6 +117,7 @@ namespace Scripty.CustomTool
 
                 if (compResult.IsCompiled == false)
                 {
+                    foreach (var d in compResult.CompilationResult.Diagnostics) { Wt(d.ToString());}
                     return new ScriptDebugResult(null, BuildScriptErrors(compResult.CompilationResult.Diagnostics));
                 }
             }
@@ -130,32 +128,10 @@ namespace Scripty.CustomTool
 
             swStep.Restart();
             var debugDomain = AppDomain.CreateDomain(DEBUG_APP_DOMAIN, null, AppDomain.CurrentDomain.SetupInformation);
-            var compiledAssemblyName = AssemblyName.GetAssemblyName(detailsToUseForTarget.DllPath);
-            var compiledAssembly = debugDomain.Load(compiledAssemblyName);
-            var instances = compiledAssembly.GetTypes();
+           
             var instance = debugDomain.CreateInstanceAndUnwrap(detailsToUseForTarget.AsmName, $"{DEBUG_NAMESPACE_NAME}.{DEBUG_CLASS_NAME}");
             Wt($"App domain creation and reference loading took {swStep.ElapsedMilliseconds}ms");
-            /*
-             Test Name:	_TestAsmCreation
-Test FullName:	Scripty.CustomTool.Tests.ScriptDebuggingTest._TestAsmCreation
-Test Source:	E:\Projects\Scripty\src\Scripty.CustomTool.Tests\DebugEngineTests.cs : line 35
-Test Outcome:	Failed
-Test Duration:	0:00:31.755
-
-Result StackTrace:	
-at System.Reflection.AssemblyName.nInit(RuntimeAssembly& assembly, Boolean forIntrospection, Boolean raiseResolveEvent)
-   at System.Reflection.RuntimeAssembly.CreateAssemblyName(String assemblyString, Boolean forIntrospection, RuntimeAssembly& assemblyFromResolveEvent)
-   at System.Activator.CreateInstance(String assemblyString, String typeName, Boolean ignoreCase, BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture, Object[] activationAttributes, Evidence securityInfo, StackCrawlMark& stackMark)
-   at System.Activator.CreateInstance(String assemblyName, String typeName)
-   at System.AppDomain.CreateInstance(String assemblyName, String typeName)
-   at System.AppDomain.CreateInstanceAndUnwrap(String assemblyName, String typeName)
-   at System.AppDomain.CreateInstanceAndUnwrap(String assemblyName, String typeName)
-   at Scripty.CustomTool.DebugEngine.DebugScript(ScriptSource source, IEnumerable`1 additionalAssemblies, Nullable`1 compileDirection) in E:\Projects\Scripty\src\Scripty.CustomTool\DebugEngine.cs:line 126
-   at Scripty.CustomTool.Tests.ScriptDebuggingTest._TestAsmCreation() in E:\Projects\Scripty\src\Scripty.CustomTool.Tests\DebugEngineTests.cs:line 38
-Result Message:	System.IO.FileLoadException : Could not load file or assembly 'E:\\Projects\\Scripty\\src\\Scripty.CustomTool.Tests\\bin\\Debug\\ScriptToExecute.csx.bq1ftp3m.0c4.rewrite.dll' or one of its dependencies. The given assembly name or codebase was invalid. (Exception from HRESULT: 0x80131047)
-
-
-             */
+            
              swStep.Restart();
             var processes = new DteHelper().GetDteVs14().Debugger.LocalProcesses.Cast<EnvDTE.Process>();
             var currentProcess = Process.GetCurrentProcess().Id;
@@ -163,7 +139,21 @@ Result Message:	System.IO.FileLoadException : Could not load file or assembly 'E
             process?.Attach();
             Wt($"Debugger process attach took {swStep.ElapsedMilliseconds}ms");
 
-            //then invoke its entry point 
+            /*
+             Test Name:	_TestAsmCreation
+ Test FullName:	Scripty.CustomTool.Tests.ScriptDebuggingTest._TestAsmCreation
+ Test Source:	E:\Projects\Scripty\src\Scripty.CustomTool.Tests\DebugEngineTests.cs : line 19
+ Test Outcome:	Failed
+ Test Duration:	0:00:59.408
+
+ Result StackTrace:	
+ at EnvDTE.Process.Attach()
+    at Scripty.CustomTool.DebugEngine.DebugScript(ScriptSource source, IEnumerable`1 additionalAssemblies, Nullable`1 compileDirection) in E:\Projects\Scripty\src\Scripty.CustomTool\DebugEngine.cs:line 161
+    at Scripty.CustomTool.Tests.ScriptDebuggingTest._TestAsmCreation() in E:\Projects\Scripty\src\Scripty.CustomTool.Tests\DebugEngineTests.cs:line 22
+ Result Message:	System.Runtime.InteropServices.COMException : An attempt was made to perform an initialization operation when initialization has already been completed.
+
+
+              */
 
             return new ScriptDebugResult(null, new List<ScriptError>());
         }
