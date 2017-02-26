@@ -19,15 +19,15 @@
             var usings = new List<UsingDirectiveSyntax>();
             foreach (var u in usingsList)
             {
-                usings.Add(SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(u)));
+                usings.Add(SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(u).WithLeadingTrivia(SyntaxFactory.Space)));
             }
 
             return SyntaxFactory.CompilationUnit()
-                .AddUsings(usings.ToArray())
                 .AddMembers(
                     SyntaxFactory.NamespaceDeclaration(SyntaxFactory.IdentifierName(namespaceName)
                             .WithLeadingTrivia(SyntaxFactory.Space)
                             .WithTrailingTrivia(SyntaxFactory.Space, SyntaxFactory.CarriageReturnLineFeed))
+                            .AddUsings(usings.ToArray())
                         .AddMembers(members));
         }
 
@@ -116,7 +116,7 @@
                                 SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName(outputFieldType))
                                     .WithArgumentList(argList)
                                     .WithNewKeyword(SyntaxFactory.Token(SyntaxKind.NewKeyword)))))))
-                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword), SyntaxFactory.Token(SyntaxKind.StaticKeyword));
+                .WithModifiers(ModifiersPublicStatic());
             return outputField;
         }
 

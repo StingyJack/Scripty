@@ -121,7 +121,8 @@
             var voidMain = SyntaxBuilder.Method(methodName, scriptStatements).AsPublicStatic();
             var outputField = SyntaxBuilder.BuildOutputFileCollectionField(scriptFilePath);
             var wrappingClass = SyntaxBuilder.ClassWrapper(className,
-                new MemberDeclarationSyntax[] {outputField}, new MemberDeclarationSyntax[] {voidMain});
+                new MemberDeclarationSyntax[] {}, new MemberDeclarationSyntax[] {voidMain});
+                //new MemberDeclarationSyntax[] {outputField }, new MemberDeclarationSyntax[] { voidMain });
 
             var usings = new List<string>();
             usings.Add("Scripty.Core");
@@ -302,7 +303,7 @@
             foreach (var refDirective in executingScriptCompilationSource.GetReferenceDirectives())
             {
                 var path = FileUtilities.BuildFullPath(scriptFolder, refDirective.File.ValueText);
-                assms.Add(Assembly.LoadFile(path));
+                assms.Add(Assembly.ReflectionOnlyLoadFrom(path));
             }
             return assms;
         }
@@ -315,10 +316,22 @@
             foreach (var refDirective in refDirectives)
             {
                 var path = FileUtilities.BuildFullPath(baseFolder, refDirective.File.ValueText);
-                assms.Add(Assembly.LoadFile(path));
+                assms.Add(Assembly.ReflectionOnlyLoadFrom(path));
                 compilationUnit = compilationUnit.RemoveNode(refDirective, SyntaxRemoveOptions.KeepNoTrivia);
             }
             return new Tuple<CompilationUnitSyntax, List<Assembly>>(compilationUnit, assms);
+        }
+        
+        public static List<Assembly> GetReferencedAssemblies(Assembly targetAssembly)
+        {
+            var result = new List<Assembly>();
+
+            foreach (var asm in targetAssembly.GetReferencedAssemblies())
+            {
+                var rol = Assembly.ReflectionOnlyLoad(asm.FullName);
+                result.Add(rol);
+            }
+            return result;
         }
 
         #endregion //#region "compilation assistants"

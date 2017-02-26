@@ -2,7 +2,6 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.Data;
     using System.IO;
     using System.Linq;
     using System.Reflection;
@@ -148,72 +147,7 @@
 
             return rewriteCandidate;
         }
-
-        /*
-
-        /// <summary>
-        ///     Extracts the class declarations from the namespaces in the original file and compiles the result.
-        /// </summary>
-        /// <param name="rewriteCandidateFilePath">The rewrite candidate file path.</param>
-        /// <returns>
-        ///     The compiled result and pdb bytes, along with the suggested file names, but
-        /// does not save the file to disk.
-        /// </returns>
         
-        public static ScriptCompilation CompileNonScriptAsScriptAssembly(string rewriteCandidateFilePath)
-        {
-            var rewriteCandidate = new ScriptCompilation {OriginalFilePath = rewriteCandidateFilePath};
-
-            var csExtraction = ExtractCompilationDetailFromClassFile(rewriteCandidateFilePath);
-            if (csExtraction.Errors.IsEmpty == false)
-            {
-                return rewriteCandidate;
-            }
-
-            var referencedAssemblies = new List<Assembly>();
-            var executingAssembly = Assembly.GetExecutingAssembly();
-            var callingAssembly = Assembly.GetCallingAssembly();
-            referencedAssemblies.Add(executingAssembly);
-            referencedAssemblies.Add(callingAssembly);
-
-            var listOfUsings = GetListOfNamespaces(csExtraction.Namespaces, referencedAssemblies);
-            var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary).WithUsings(listOfUsings);
-            var metadataReferences = GetMetadataReferences(executingAssembly, callingAssembly);
-            var rewriteAssemblyPaths = GetRewriteAssemblyPaths(rewriteCandidateFilePath);
-
-            var compilation = CSharpCompilation.Create(
-                rewriteAssemblyPaths.AsmName,
-                csExtraction.CompilationTargets.ToArray(),
-                metadataReferences.ToArray(),
-                options
-            );
-
-            using (var dllStream = new MemoryStream())
-            using (var pdbStream = new MemoryStream())
-            {
-                var emitResult = compilation.Emit(dllStream, pdbStream);
-
-                //success sometimes was false when there are warnings, but i didnt write it down
-                // so maybe it was a specific kind. Or I should pay more attention.
-
-                if (emitResult.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error) == 0)
-                {
-                    dllStream.Seek(0, SeekOrigin.Begin);
-                    pdbStream.Seek(0, SeekOrigin.Begin);
-                    rewriteCandidate.AssemblyBytes = dllStream.ToArray();
-                    rewriteCandidate.PdbBytes = pdbStream.ToArray();
-
-                    rewriteCandidate.AssemblyFilePath = rewriteAssemblyPaths.DllPath;
-                    rewriteCandidate.PdbFilePath = rewriteAssemblyPaths.PdbPath;
-                    rewriteCandidate.CompilationResult = emitResult;
-                    rewriteCandidate.FoundNamespaces.AddRange(listOfUsings);
-                    rewriteCandidate.FoundAssemblies.AddRange(referencedAssemblies);
-                }
-            }
-            return rewriteCandidate;
-        }
-        */
-
         public static CsExtraction ExtractCompilationDetailFromClassFile(string rewriteCandidateFilePath)
         {
             var scriptCode = FileUtilities.GetFileContentSoft(rewriteCandidateFilePath);
@@ -301,24 +235,7 @@
             var metadataReferences = compilation.References.Where(r => r.Properties.Kind == MetadataImageKind.Assembly);
             return metadataReferences;
         }
-
-        /// <summary>
-        ///     Gets the metadata references.
-        /// </summary>
-        /// <param name="executingAssembly">The executing assembly.</param>
-        /// <param name="callingAssembly">The calling assembly.</param>
-        /// <returns></returns>
-        private static List<MetadataReference> GetMetadataReferences(Assembly executingAssembly, Assembly callingAssembly)
-        {
-            var metadataReferences = new List<MetadataReference>();
-            metadataReferences.Add(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
-            metadataReferences.Add(MetadataReference.CreateFromFile(typeof(DataSet).Assembly.Location));
-            metadataReferences.Add(MetadataReference.CreateFromFile(typeof(ScriptContext).Assembly.Location));
-            metadataReferences.Add(MetadataReference.CreateFromFile(executingAssembly.Location));
-            metadataReferences.Add(MetadataReference.CreateFromFile(callingAssembly.Location));
-            return metadataReferences;
-        }
-
+        
         private static List<string> GetListOfNamespaces(IEnumerable<string> namespacesToUseVerbatim = null, IEnumerable<Assembly> assemblies = null,
             IEnumerable<MetadataReference> metadataReferences = null)
         {
@@ -412,11 +329,12 @@
         public static AsmDetail GetRewriteAssemblyPaths(string normalizedPath)
         {
             var name = $"{Path.GetRandomFileName()}.{DEFAULT_REWRITE_EXTENSION}";
+            var existingFileName = Path.GetFileName(normalizedPath);
             var basePath = $"{normalizedPath}.{name}";
 
             return new AsmDetail
             {
-                AsmName = name,
+                AsmName = $"{existingFileName}.{name}",
                 DllPath = $"{basePath}.{DEFAULT_DLL_EXTENSION}",
                 PdbPath = $"{basePath}.{DEFAULT_PDB_EXTENSION}"
             };

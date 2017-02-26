@@ -18,7 +18,7 @@
 
   <!-- Allow the path to the Scripty assembly to be passed in during testing. -->
   <PropertyGroup>
-    <ScriptyAssembly Condition=" '$(ScriptyAssembly)' == '' ">$(MSBuildThisFileDirectory)Scripty.MsBuild.dll</ScriptyAssembly>
+    <ScriptyAssembly Condition=" '$(ScriptyAssembly)' == '' ">$(MSBuildThisFileDirectory)\..\tools\Scripty.MsBuild.dll</ScriptyAssembly>
   </PropertyGroup>
 
   <UsingTask AssemblyFile="$(ScriptyAssembly)" TaskName="ScriptyTask" />

@@ -7,7 +7,7 @@ namespace Scripty.Core
     public class ScriptResult
     {
         public ICollection<IOutputFileInfo> OutputFiles { get; }
-        public ICollection<ScriptError> Errors { get; }
+        public ICollection<ScriptError> Errors { get; private set; }
 
         internal ScriptResult(ICollection<IOutputFileInfo> outputFiles)
             : this(outputFiles, Array.Empty<ScriptError>())
@@ -23,10 +23,11 @@ namespace Scripty.Core
 
         internal void AddErrors(ICollection<ScriptError> errors)
         {
-            foreach (var error in errors)
-            {
-                Errors.Add(error);
-            }
+
+            var errs = new List<ScriptError>(Errors);
+            errs.AddRange(errors);
+            Errors = errs;
+
         }
     }
 }

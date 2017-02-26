@@ -1,6 +1,5 @@
 ﻿namespace Scripty
 {
-    using System.ComponentModel.Composition;
     using System.Runtime.InteropServices;
     using EnvDTE80;
     using Microsoft.VisualStudio.Shell;

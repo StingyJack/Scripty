@@ -113,6 +113,12 @@ namespace Scripty
                     }
                 });
 
+            if (tasks.Any() == false)
+            {
+                Console.WriteLine("No script tasks queued to execute");
+                return (int)ExitCode.CommandLineError;
+            }
+
             // Evaluate all the scripts
             try
             {

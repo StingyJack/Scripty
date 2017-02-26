@@ -9,8 +9,9 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ProjA</RootNamespace>
     <AssemblyName>ProjA</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -57,6 +58,6 @@
   <ItemGroup>
     <None Include="Test.csx" />
   </ItemGroup>
-  <Import Project="$(MSBuildProjectDirectory)\..\..\..\Scripty.MsBuild\Scripty.MsBuild.targets" />
+  <Import Project="$(MSBuildProjectDirectory)\..\..\..\Scripty.MsBuild\bin\Debug\Scripty.MsBuild.targets" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

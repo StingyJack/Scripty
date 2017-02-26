@@ -2,11 +2,12 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.Data;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Reflection;
     using System.Threading.Tasks;
+    using Compilation;
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp.Scripting;
     using Microsoft.CodeAnalysis.Formatting;
@@ -63,9 +64,9 @@
 
         public async Task<ScriptResult> Evaluate(ScriptSource source)
         {
-            var assembliesToRef = BuildAssembliesToRef();
+            var assembliesToRef = BuildReferenceCollection();
             var namepspaces = BuildNamepspaces();
-            var options = BuildScriptOptions(source, assembliesToRef, namepspaces);
+            var options = BuildScriptOptions(source, assembliesToRef.AsAssemblies(), namepspaces);
 
             ScriptResult scriptResult;
 
@@ -85,8 +86,8 @@
             }
         }
 
-      
-        
+
+
         public async Task<ScriptState<ScriptContext>> Run(ScriptSource source, ScriptOptions options)
         {
             try
@@ -107,7 +108,7 @@
 
         #region  "engine helpers"
 
-        protected static List<string> BuildNamepspaces()
+        protected static List<string> BuildNamepspaces(IEnumerable<string> additionalNamespaces = null )
         {
             var namepspaces = new List<string>
             {
@@ -116,34 +117,58 @@
                 "Scripty.Core.Output",
                 "Scripty.Core.ProjectTree"
             };
+            if (additionalNamespaces != null)
+            {
+                namepspaces.AddRange(additionalNamespaces);
+            }
             return namepspaces;
         }
 
-        protected static List<Assembly> BuildAssembliesToRef(IEnumerable<Assembly> additionalAssemblies = null)
+        /// <summary>
+        ///     Builds the usual assembly reference collection, with references to mscorlib, CodeAnalysis, Scripty.Core, MSBuild, 
+        /// anything Scripty.Core is referencing, anything the currently executing assembly is referencing, anything the ambient
+        /// project is referencing, and whatever is in the additional assemblies parameter.
+        /// </summary>
+        /// <param name="additionalAssemblies">Any additional assemblies</param>
+        /// <returns></returns>
+        protected ReferenceCollection BuildReferenceCollection(IEnumerable<Assembly> additionalAssemblies = null)
         {
-            var assembliesToRef = new List<Assembly>
-            {
-                typeof(object).Assembly, //mscorlib
-                typeof(Project).Assembly, // Microsoft.CodeAnalysis.Workspaces
-                typeof(Microsoft.Build.Evaluation.Project).Assembly, // Microsoft.Build
-                typeof(ScriptEngine).Assembly // Scripty.Core
-                ,
-                typeof(DataSet).Assembly
-            };
-            if (additionalAssemblies != null)
-            {
-                foreach (var additionalAssembly in additionalAssemblies)
-                {
-                    if (assembliesToRef.Any(a => a.FullName == additionalAssembly.FullName))
-                    {
-                        continue;
-                    }
-                    assembliesToRef.Add(additionalAssembly);
-                }
-                
-            }
+            var swTotal = Stopwatch.StartNew();
+            var swStep = Stopwatch.StartNew();
+            var assembliesToRef = new ReferenceCollection();
+            swStep.Stop();
+            Wt($"ReferenceCollection instance creation took {swStep.ElapsedMilliseconds}ms");
+
+            swStep.Restart();
+            assembliesToRef.Add(typeof(object), typeof(Project), typeof(Microsoft.Build.Evaluation.Project), typeof(ScriptEngine));
+            swStep.Stop();
+            Wt($"ReferenceCollection add by type took {swStep.ElapsedMilliseconds}ms");
+
+            swStep.Restart();
+            assembliesToRef.Add(CompilationHelpers.GetReferencedAssemblies(typeof(ScriptEngine).Assembly));
+            swStep.Stop();
+            Wt($"ReferenceCollection add script engine references creation took {swStep.ElapsedMilliseconds}ms");
+
+            swStep.Restart();
+            assembliesToRef.Add(CompilationHelpers.GetReferencedAssemblies(Assembly.GetExecutingAssembly()));
+            swStep.Stop();
+            Wt($"ReferenceCollection add executing assembly references creation took {swStep.ElapsedMilliseconds}ms");
+
+            swStep.Restart();
+            assembliesToRef.Add(ProjectRoot.Analysis.MetadataReferences);
+            swStep.Stop();
+            Wt($"ReferenceCollection add ambient project metadata creation took {swStep.ElapsedMilliseconds}ms");
+
+            swStep.Restart();
+            assembliesToRef.Add(additionalAssemblies);
+            swStep.Stop();
+            Wt($"ReferenceCollection add additional assemblies instance creation took {swStep.ElapsedMilliseconds}ms");
+            
+            swTotal.Stop();
+            Wt($"ReferenceCollection total operation time took {swTotal.ElapsedMilliseconds}ms");
             return assembliesToRef;
         }
+
 
         protected static ScriptOptions BuildScriptOptions(ScriptSource source, List<Assembly> assembliesToRef, List<string> namepspaces)
         {
@@ -253,6 +278,15 @@
                 Line = x.Location.GetLineSpan().StartLinePosition.Line,
                 Column = x.Location.GetLineSpan().StartLinePosition.Character
             }).ToList();
+        }
+
+        /// <summary>
+        ///     Writes the specified message to trace
+        /// </summary>
+        /// <param name="message">The message.</param>
+        protected void Wt(string message)
+        {
+            Trace.WriteLine(message);
         }
 
         #endregion //#region  "exception handling"
