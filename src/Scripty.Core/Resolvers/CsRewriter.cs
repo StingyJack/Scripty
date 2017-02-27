@@ -21,6 +21,7 @@
         public const string DEFAULT_REWRITE_TEMP_EXTENSION = "rewrite.tmp";
         public const string DEFAULT_REWRITE_EXTENSION = "rewrite";
         public const string DEFAULT_DLL_EXTENSION = "dll";
+        public const string DEFAULT_EXE_EXTENSION = "exe";
         public const string DEFAULT_PDB_EXTENSION = "pdb";
 
 
@@ -314,28 +315,43 @@
         /// <summary>
         /// Gets the rewrite file path.
         /// </summary>
-        /// <param name="normalizedPath">The normalized path.</param>
+        /// <param name="checkedSourcePath">The normalized path.</param>
         /// <returns></returns>
-        public static string GetRewriteFilePath(string normalizedPath)
+        public static string GetRewriteFilePath(string checkedSourcePath)
         {
-            return $"{normalizedPath}.{Path.GetRandomFileName()}.{DEFAULT_REWRITE_TEMP_EXTENSION}";
+            return $"{checkedSourcePath}.{Path.GetRandomFileName()}.{DEFAULT_REWRITE_TEMP_EXTENSION}";
         }
 
         /// <summary>
         /// Gets the rewrite assembly paths.
         /// </summary>
-        /// <param name="normalizedPath">The normalized path.</param>
+        /// <param name="checkedSourcePath">The checked source.</param>
         /// <returns></returns>
-        public static AsmDetail GetRewriteAssemblyPaths(string normalizedPath)
+        public static AsmDetail GetRewriteAssemblyPaths(string checkedSourcePath)
+        {
+            return GetRewriteAssemblyPaths(checkedSourcePath, DEFAULT_DLL_EXTENSION);
+        }
+        
+        /// <summary>
+        ///     Gets the debug host paths.
+        /// </summary>
+        /// <param name="checkedSourcePath">The checked source path.</param>
+        /// <returns></returns>
+        public static AsmDetail GetDebugHostPaths(string checkedSourcePath)
+        {
+            return GetRewriteAssemblyPaths(checkedSourcePath, DEFAULT_EXE_EXTENSION);
+        }
+
+        private static AsmDetail GetRewriteAssemblyPaths(string checkedSourcePath, string extension)
         {
             var name = $"{Path.GetRandomFileName()}.{DEFAULT_REWRITE_EXTENSION}";
-            var existingFileName = Path.GetFileName(normalizedPath);
-            var basePath = $"{normalizedPath}.{name}";
+            var existingFileName = Path.GetFileName(checkedSourcePath);
+            var basePath = $"{checkedSourcePath}.{name}";
 
             return new AsmDetail
             {
                 AsmName = $"{existingFileName}.{name}",
-                DllPath = $"{basePath}.{DEFAULT_DLL_EXTENSION}",
+                AsmPath = $"{basePath}.{extension}",
                 PdbPath = $"{basePath}.{DEFAULT_PDB_EXTENSION}"
             };
         }

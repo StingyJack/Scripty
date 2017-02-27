@@ -1,5 +1,6 @@
 ﻿namespace Scripty.Core.Compilation
 {
+    using System.Linq;
     using Microsoft.CodeAnalysis.CSharp.Syntax;
 
     public static class SyntaxExtensions
@@ -16,12 +17,12 @@
 
         public static MethodDeclarationSyntax AsPublic(this MethodDeclarationSyntax methodDeclarationSyntax)
         {
-            return methodDeclarationSyntax.WithModifiers(SyntaxBuilder.ModifierPublic);
+            return methodDeclarationSyntax.AddModifiers(SyntaxBuilder.ModifierPublic.ToArray());
         }
 
         public static MethodDeclarationSyntax AsStatic(this MethodDeclarationSyntax methodDeclarationSyntax)
         {
-            return methodDeclarationSyntax.WithModifiers(SyntaxBuilder.ModifierStatic);
+            return methodDeclarationSyntax.AddModifiers(SyntaxBuilder.ModifierStatic.ToArray());
         }
 
         public static FieldDeclarationSyntax AsPublic(this FieldDeclarationSyntax fieldDeclarationSyntax)

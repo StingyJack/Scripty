@@ -1,14 +1,16 @@
 ﻿namespace Scripty.Core.Resolvers
 {
+    using Microsoft.CodeAnalysis;
+
     /// <summary>
     ///     Assembly details
     /// </summary>
     public class AsmDetail
     {
         /// <summary>
-        ///     Gets or sets the DLL path.
+        ///     Gets or sets the path for the portable executable (dll, exe).
         /// </summary>
-        public string DllPath { get; set; }
+        public string AsmPath { get; set; }
         /// <summary>
         ///     Gets or sets the PDB path.
         /// </summary>
@@ -17,5 +19,6 @@
         ///     Gets or sets the asm name.
         /// </summary>
         public string AsmName { get; set; }
+
     }
 }

@@ -79,7 +79,7 @@
                     scriptCompilation.AssemblyBytes = dllStream.ToArray();
                     scriptCompilation.PdbBytes = pdbStream.ToArray();
 
-                    scriptCompilation.AssemblyFilePath = detailsToUseForTarget.DllPath;
+                    scriptCompilation.AssemblyFilePath = detailsToUseForTarget.AsmPath;
                     scriptCompilation.PdbFilePath = detailsToUseForTarget.PdbPath;
                     scriptCompilation.FoundNamespaces.AddRange(compilationPrep.Usings);
                     scriptCompilation.FoundMetadataReferences.AddRange(compilationPrep.MetadataReferences);
@@ -94,17 +94,29 @@
         {
             var compilationPrep = PrepareScriptCompilation(compilationSource, detailsToUseForTarget, additionalUsings, additionalReferences);
 
-            var emitResult = compilationPrep.Compilation.Emit(detailsToUseForTarget.DllPath, detailsToUseForTarget.PdbPath);
+            var emitResult = compilationPrep.Compilation.Emit(detailsToUseForTarget.AsmPath, detailsToUseForTarget.PdbPath);
 
             return BuildScriptCompilationResult(detailsToUseForTarget, emitResult, compilationPrep);
         }
 
+        /// <summary>
+        ///     Compiles the and writes to a PE.
+        /// </summary>
+        /// <param name="pathToScriptFile">The path to script file.</param>
+        /// <param name="compilationSources">The compilation sources.</param>
+        /// <param name="detailsToUseForTarget">The details to use for target.</param>
+        /// <param name="additionalUsings">The additional usings.</param>
+        /// <param name="additionalReferences">The additional references.</param>
+        /// <param name="outputKind">Defaults to Dll if not specified</param>
+        /// <returns></returns>
         public static ScriptCompilationResult CompileAndWriteAssembly(string pathToScriptFile,
             ImmutableList<SyntaxTree> compilationSources, AsmDetail detailsToUseForTarget,
-            IEnumerable<string> additionalUsings = null, IEnumerable<MetadataReference> additionalReferences = null)
+            IEnumerable<string> additionalUsings = null, IEnumerable<MetadataReference> additionalReferences = null, 
+            OutputKind? outputKind = null)
         {
-            var compilationPrep = PrepareCompilation(compilationSources, detailsToUseForTarget, additionalUsings, additionalReferences);
-            var emitResult = compilationPrep.Compilation.Emit(detailsToUseForTarget.DllPath, detailsToUseForTarget.PdbPath);
+            var compilationPrep = PrepareCompilation(compilationSources, detailsToUseForTarget, additionalUsings, additionalReferences, outputKind);
+
+            var emitResult = compilationPrep.Compilation.Emit(detailsToUseForTarget.AsmPath, detailsToUseForTarget.PdbPath);
 
             return BuildScriptCompilationResult(detailsToUseForTarget, emitResult, compilationPrep);
         }
@@ -113,24 +125,53 @@
 
         #region  "builders"
 
-        public static CompilationUnitSyntax WrapScriptInStandardClass(CompilationUnitSyntax strippedScript, 
+        public static CompilationUnitSyntax WrapScriptInStandardClass(CompilationUnitSyntax strippedScript,
             string namespaceName, string className, string methodName, string scriptFilePath, List<string> usings)
         {
             var scriptStatements = SyntaxFactory.ParseStatement(strippedScript.GetText().ToString());
-            var voidMain = SyntaxBuilder.Method("Main", SyntaxFactory.EmptyStatement()).AsPublic().AsStatic().AsReturnVoid();
-            var scriptMethod = SyntaxBuilder.Method(methodName, scriptStatements);
+            var voidMain = BuildVoidMainWaitForDebugger();
+            var scriptMethod = SyntaxBuilder.Method(methodName, scriptStatements).AsPublic();
             var outputField = SyntaxBuilder.BuildOutputFileCollectionField(scriptFilePath);
             var wrappingClass = SyntaxBuilder.ClassWrapper(className,
-                new MemberDeclarationSyntax[] {outputField}, new MemberDeclarationSyntax[] {voidMain, scriptMethod})
+                    new MemberDeclarationSyntax[] {outputField}, new MemberDeclarationSyntax[] {voidMain, scriptMethod})
                 .AsSeriallzable();
-            
-
-            
 
             var wrappingNamespace = SyntaxBuilder.NamespaceWrapper(namespaceName, usings,
-                new MemberDeclarationSyntax[] { wrappingClass });
+                new MemberDeclarationSyntax[] {wrappingClass});
 
             return wrappingNamespace;
+        }
+
+        public static MethodDeclarationSyntax BuildVoidMainWaitForDebugger()
+        {
+            //add this
+            var debuggerWait = CSharpSyntaxTree.ParseText(@"
+public static void Main()
+{
+    var waitMax = 10*1000;
+    var waited = 0;
+    var waitInterval = 100;
+
+    while (System.Diagnostics.Debugger.IsAttached == false && waited < waitMax)
+    {
+        System.Threading.Thread.Sleep(waitInterval);
+        waited += waitInterval;
+    }
+
+    if (waitMax < waitInterval)
+    {
+        throw new Exception(""Failed to get debugger attached in time"");
+    }
+
+    new ScriptyDebugCls().ScriptyDebugMeth();
+}");
+
+            var dwMcu = GetRootMainCompilationUnit(debuggerWait);
+            var memberDecl = (MethodDeclarationSyntax)dwMcu.Members.First();
+            var statements = memberDecl.Body;
+            
+            var method = SyntaxBuilder.Method("Main", statements).AsPublic().AsStatic().AsReturnVoid();
+            return method;
         }
 
         private static ScriptCompilationResult BuildScriptCompilationResult(AsmDetail detailsToUseForTarget, EmitResult emitResult,
@@ -142,7 +183,7 @@
             if (emitResult.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error) == 0)
             {
                 result.IsCompiled = true;
-                result.AssemblyFilePath = detailsToUseForTarget.DllPath;
+                result.AssemblyFilePath = detailsToUseForTarget.AsmPath;
                 result.PdbFilePath = detailsToUseForTarget.PdbPath;
                 result.FoundNamespaces.AddRange(compilationPrep.Usings);
                 result.FoundMetadataReferences.AddRange(compilationPrep.MetadataReferences);
@@ -192,11 +233,18 @@
         }
 
         private static PreparedCompilation PrepareCompilation(ImmutableList<SyntaxTree> compilationSources, AsmDetail detailsToUseForTarget,
-            IEnumerable<string> additionalUsings = null, IEnumerable<MetadataReference> additionalReferences = null)
+            IEnumerable<string> additionalUsings = null, IEnumerable<MetadataReference> additionalReferences = null, OutputKind? outputKind = null)
         {
             var commonDetails = BuildCommonCompilationDetails(additionalUsings, additionalReferences);
 
-            var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+            var outputKindForOptions = OutputKind.DynamicallyLinkedLibrary;
+
+            if (outputKind.HasValue)
+            {
+                outputKindForOptions = outputKind.Value;
+            }
+
+            var options = new CSharpCompilationOptions(outputKindForOptions)
                 .WithUsings(commonDetails.ListOfUsings)
                 .WithAssemblyIdentityComparer(DesktopAssemblyIdentityComparer.Default);
 
@@ -238,7 +286,7 @@
         }
 
         /// <summary>
-        /// Gets the main compilation unit for the root of the syntax tree. This should effectively be the namespace 'container'
+        /// Gets the main compilation unit for the root of the syntax tree. 
         /// </summary>
         /// <param name="scriptCode">The script code.</param>
         /// <param name="options">The options.</param>
@@ -254,8 +302,20 @@
 
             var mainSyntaxTree = CSharpSyntaxTree.ParseText(scriptCode, options);
 
+            return GetRootMainCompilationUnit(mainSyntaxTree);
+        }
+
+        /// <summary>
+        /// Gets the main compilation unit for the root of the syntax tree. 
+        /// </summary>
+        /// <param name="syntaxTree">The syntax tree.</param>
+        /// <returns>
+        /// null if unable to get 
+        /// </returns>
+        public static CompilationUnitSyntax GetRootMainCompilationUnit(SyntaxTree syntaxTree)
+        {
             SyntaxNode mainSyntaxTreeRoot;
-            if (mainSyntaxTree.TryGetRoot(out mainSyntaxTreeRoot) == false)
+            if (syntaxTree.TryGetRoot(out mainSyntaxTreeRoot) == false)
             {
                 return null;
             }

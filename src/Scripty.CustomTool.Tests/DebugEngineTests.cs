@@ -44,26 +44,19 @@
 
         /*
          * 
-         * Loads compiled dll, cant find entry point i guess. remove static and make it an instance. 
-         * Also whre are the contents in ILSpy
-         * 
-         *Test Name:	_TestAsmCreation
+         * Test Name:	_TestAsmCreation
 Test FullName:	Scripty.CustomTool.Tests.ScriptDebuggingTest._TestAsmCreation
 Test Source:	E:\Projects\Scripty\src\Scripty.CustomTool.Tests\DebugEngineTests.cs : line 19
 Test Outcome:	Failed
-Test Duration:	0:00:06.207
+Test Duration:	0:01:05.566
 
-Result StackTrace:	
-at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture, Object[] activationAttributes, StackCrawlMark& stackMark)
-   at System.Activator.CreateInstance(Type type, BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture, Object[] activationAttributes)
-   at System.Activator.CreateInstance(String assemblyString, String typeName, Boolean ignoreCase, BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture, Object[] activationAttributes, Evidence securityInfo, StackCrawlMark& stackMark)
-   at System.Activator.CreateInstance(String assemblyName, String typeName)
-   at System.AppDomain.CreateInstance(String assemblyName, String typeName)
-   at System.AppDomain.CreateInstanceAndUnwrap(String assemblyName, String typeName)
-   at System.AppDomain.CreateInstanceAndUnwrap(String assemblyName, String typeName)
-   at Scripty.CustomTool.DebugEngine.DebugScript(ScriptSource source, IEnumerable`1 additionalAssemblies, Nullable`1 compileDirection) in E:\Projects\Scripty\src\Scripty.CustomTool\DebugEngine.cs:line 136
-   at Scripty.CustomTool.Tests.ScriptDebuggingTest._TestAsmCreation() in E:\Projects\Scripty\src\Scripty.CustomTool.Tests\DebugEngineTests.cs:line 22
-Result Message:	System.MissingMethodException : Constructor on type 'ScriptyDebugNs.ScriptyDebugCls' not found.
+Result StackTrace:	at Scripty.CustomTool.Tests.ScriptDebuggingTest._TestAsmCreation() in E:\Projects\Scripty\src\Scripty.CustomTool.Tests\DebugEngineTests.cs:line 29
+Result Message:	
+Test completed without errors. Doesnt mean it works tho
+  Expected: True
+  But was:  False
+
+
 
 
 

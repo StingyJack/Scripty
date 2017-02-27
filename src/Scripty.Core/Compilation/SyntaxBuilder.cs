@@ -59,8 +59,7 @@
             var voidMain = SyntaxFactory.MethodDeclaration(returnSyntax, identifier)
                 .WithBody(SyntaxFactory.Block(statements))
                 .WithLeadingTrivia(SyntaxFactory.Space)
-                .WithTrailingTrivia(SyntaxFactory.Space, SyntaxFactory.CarriageReturnLineFeed)
-                .AsPublic();
+                .WithTrailingTrivia(SyntaxFactory.Space, SyntaxFactory.CarriageReturnLineFeed);
 
             return voidMain;
         }

@@ -8,6 +8,8 @@ namespace Scripty.CustomTool
     using System.IO;
     using System.Linq;
     using System.Reflection;
+    using System.Threading;
+    using System.Threading.Tasks;
     using Core.Compilation;
     using Core;
     using Core.Resolvers;
@@ -15,6 +17,7 @@ namespace Scripty.CustomTool
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.CSharp.Syntax;
     using Microsoft.CodeAnalysis.Formatting;
+    using Microsoft.VisualStudio.Shell;
 
     public class DebugEngine : ScriptEngine
     {
@@ -22,7 +25,7 @@ namespace Scripty.CustomTool
         public const string DEBUG_NAMESPACE_NAME = "ScriptyDebugNs";
         public const string DEBUG_CLASS_NAME = "ScriptyDebugCls";
         public const string DEBUG_METHOD_NAME = "ScriptyDebugMeth";
-        
+
 
         public DebugEngine(string projectFilePath) : base(projectFilePath)
         {
@@ -38,7 +41,7 @@ namespace Scripty.CustomTool
         {
             if (compileDirection.HasValue == false) { compileDirection = CompileDirection.EverythingBuiltAsClassesAndReffed; }
             Wt($"Begin debugging source '{source.FilePath}' with direction {compileDirection.Value}");
-            
+
             //get the defaults and usual stuffs
             var referenceCollection = BuildReferenceCollection(additionalAssemblies);
             referenceCollection.Add(typeof(DebugEngine));
@@ -65,7 +68,7 @@ namespace Scripty.CustomTool
             {
                 var path = FileUtilities.BuildFullPath(scriptFolder, loadDirective.File.ValueText);
                 var asmDetail = CsRewriter.GetRewriteAssemblyPaths(path);
-                var referencedCompilation = CompilationHelpers.GetCompilationForLoadDirective(compileDirection.Value, path, asmDetail, 
+                var referencedCompilation = CompilationHelpers.GetCompilationForLoadDirective(compileDirection.Value, path, asmDetail,
                     namespaces, referenceCollection.AsMetadataReferences());
                 var scriptErrors = BuildScriptErrors(referencedCompilation.CompilationResult.Diagnostics);
 
@@ -89,7 +92,7 @@ namespace Scripty.CustomTool
             Wt($"Script load directive removal took {swStep.ElapsedMilliseconds}ms");
 
             swStep.Restart();
-            var wholeUnit = CompilationHelpers.WrapScriptInStandardClass(executingScriptCompilationSource, 
+            var wholeUnit = CompilationHelpers.WrapScriptInStandardClass(executingScriptCompilationSource,
                 DEBUG_NAMESPACE_NAME, DEBUG_CLASS_NAME, DEBUG_METHOD_NAME, source.FilePath, namespaces).NormalizeWhitespace();
             Wt($"Script wrapping took {swStep.ElapsedMilliseconds}ms");
 
@@ -98,13 +101,16 @@ namespace Scripty.CustomTool
             Wt($"Script formatting took {swStep.ElapsedMilliseconds}ms");
             WriteBlockToTrace(formatted);
             compilationSources.Add(formatted.SyntaxTree);
-            
+
             swStep.Restart();
-            var context = GetContext(source.FilePath);
+
             var outputDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             var scriptFileName = Path.GetFileName(source.FilePath);
             var outputPath = FileUtilities.BuildFullPath(outputDir, scriptFileName);
-            var detailsToUseForTarget = CsRewriter.GetRewriteAssemblyPaths(outputPath);
+            var detailsToUseForTarget = CsRewriter.GetDebugHostPaths(outputPath);
+            Wt($"Determined write path '{detailsToUseForTarget.AsmPath}'");
+            var context = GetContext(source.FilePath); //TODO: is this needed?
+
             Wt($"Precompilation details took {swStep.ElapsedMilliseconds}ms");
 
             try
@@ -117,7 +123,7 @@ namespace Scripty.CustomTool
 
                 if (compResult.IsCompiled == false)
                 {
-                    foreach (var d in compResult.CompilationResult.Diagnostics) { Wt(d.ToString());}
+                    foreach (var d in compResult.CompilationResult.Diagnostics) { Wt(d.ToString()); }
                     return new ScriptDebugResult(null, BuildScriptErrors(compResult.CompilationResult.Diagnostics));
                 }
             }
@@ -127,33 +133,83 @@ namespace Scripty.CustomTool
             }
 
             swStep.Restart();
-            var debugDomain = AppDomain.CreateDomain(DEBUG_APP_DOMAIN, null, AppDomain.CurrentDomain.SetupInformation);
-           
-            var instance = debugDomain.CreateInstanceAndUnwrap(detailsToUseForTarget.AsmName, $"{DEBUG_NAMESPACE_NAME}.{DEBUG_CLASS_NAME}");
-            Wt($"App domain creation and reference loading took {swStep.ElapsedMilliseconds}ms");
+            var targetProcessStartInfo = new ProcessStartInfo(detailsToUseForTarget.AsmPath)
+            {
+                WindowStyle = ProcessWindowStyle.Hidden,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            string stdOut = null;
+            string stdErr = null;
+
+            Wt($"Starting debug host process");
+            Process targetProcess = null;
+            try
+            {
+
+                new Thread(() =>
+                                {
+                                    targetProcess = Process.Start(targetProcessStartInfo);
+                                    stdOut = targetProcess.StandardOutput.ReadToEnd();
+                                    stdErr = targetProcess.StandardError.ReadToEnd();
+                                }).Start();
+
+                //spin wait for timeout?
+                Wt($"Debug host process started with.");
+                
+            }
+            catch (Exception ex)
+            {
+                Wt($"An error occured while starting the host process. \n stdOut: {stdOut} \n: stdErr: {stdErr} \n ex: {ex}");
+                throw;
+            }
             
-             swStep.Restart();
-            var processes = new DteHelper().GetDteVs14().Debugger.LocalProcesses.Cast<EnvDTE.Process>();
-            var currentProcess = Process.GetCurrentProcess().Id;
-            var process = processes.FirstOrDefault(p => p.ProcessID == currentProcess);
-            process?.Attach();
+               
+            //dont need this if the scirpt hosts itself
+            //var debugDomain = AppDomain.CreateDomain(DEBUG_APP_DOMAIN, null, AppDomain.CurrentDomain.SetupInformation);
+            //var instance = debugDomain.CreateInstanceAndUnwrap(detailsToUseForTarget.AsmName, $"{DEBUG_NAMESPACE_NAME}.{DEBUG_CLASS_NAME}");
+            //Wt($"App domain creation and reference loading took {swStep.ElapsedMilliseconds}ms");
+
+            swStep.Restart();
+            var rawProcesses = new DteHelper().GetDteVs14().Debugger.LocalProcesses.Cast<EnvDTE.Process>();
+            var processes = rawProcesses as EnvDTE.Process[] ?? rawProcesses.ToArray();
+            
+            Wt($"Found {processes.Count()} local processes, looking for Id {targetProcess.Id}");
+            EnvDTE.Process debugTarget = null;
+            foreach (var p in processes)
+            {
+                var parented = p.Parent == null ? "no parent" : $"parented by {p.Parent}";
+                Wt($"\t - {p.ProcessID} - {p.Name} - {parented} ");
+                if (p.ProcessID == targetProcess.Id)
+                {
+                    Wt("Found process to attach to");
+                    debugTarget = p;
+                    break;
+                }
+            }
+
+            //https://gist.github.com/atruskie/3813175#file-visualstudioattacher-cs
+
+            if (debugTarget == null)
+            {
+                throw new InvalidOperationException("Couldn't find a target to attach to");
+            }
+
+            if (debugTarget.Parent != null)
+            {
+                //is this instance of debugger the one that is parent?
+                //check Debugger.DebuggedProcesses maybe?
+            }
+
+            debugTarget.Attach();
+            debugTarget.Break(); //breaks in the thread sleep that is waiting for debugger but doesnt step next
+            
+
             Wt($"Debugger process attach took {swStep.ElapsedMilliseconds}ms");
 
-            /*
-             Test Name:	_TestAsmCreation
- Test FullName:	Scripty.CustomTool.Tests.ScriptDebuggingTest._TestAsmCreation
- Test Source:	E:\Projects\Scripty\src\Scripty.CustomTool.Tests\DebugEngineTests.cs : line 19
- Test Outcome:	Failed
- Test Duration:	0:00:59.408
 
- Result StackTrace:	
- at EnvDTE.Process.Attach()
-    at Scripty.CustomTool.DebugEngine.DebugScript(ScriptSource source, IEnumerable`1 additionalAssemblies, Nullable`1 compileDirection) in E:\Projects\Scripty\src\Scripty.CustomTool\DebugEngine.cs:line 161
-    at Scripty.CustomTool.Tests.ScriptDebuggingTest._TestAsmCreation() in E:\Projects\Scripty\src\Scripty.CustomTool.Tests\DebugEngineTests.cs:line 22
- Result Message:	System.Runtime.InteropServices.COMException : An attempt was made to perform an initialization operation when initialization has already been completed.
-
-
-              */
 
             return new ScriptDebugResult(null, new List<ScriptError>());
         }
