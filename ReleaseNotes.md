@@ -1,3 +1,23 @@
+# 0.7.4
+
+- [Fix] Fixed Cake addin target version (#95, thanks @crash-dive)
+- [Fix] Removed Newtonsoft.Json as package dependency from MSBuild task (#96)
+- [Fix] Tweaked Visual Studio dependencies for VSIX package to work on older Visual Studio versions (#93)
+- [Fix] Changed build property failures to a warning for better Mono support (#92)
+
+# 0.7.3
+
+- [Feature] Adds option to continue on MSBuild task failures (#37)
+- [Fix] Adds assembly binding attributes to the Visual Studio extension (#89)
+- [Fix] No longer uses a timeout for reading stdin
+
+# 0.7.2
+
+- [Fix] Removed the System.IO.FileSystem.Primitives dependency from the MSBuild task (#84)
+- [Fix] Adds a check for undefined solution paths (#81)
+- [Fix] Passes data from MSBuild task to Scripty via stdin instead of CLI (#80, #87)
+- [Fix] MSBuild task now fails the build if Scripty fails (#37)
+
 # 0.7.1
 
 - [Fix] Fix for binding redirects in NuGet package
